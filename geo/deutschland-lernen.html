@@ -488,8 +488,8 @@ function render(){
       else if(mode!==2)p.addEventListener('click',()=>{if(isOn(ck,i))onPick(ck,i,f);});
     }else{
       p.setAttribute('class','region base-nb');
-      // When seas active: full opacity so land covers sea correctly; no dimming
       if((mode===2||mode===3)&&effCat!=='seas')p.style.opacity='.6';
+      if(effCat==='seas')p.style.pointerEvents='auto'; // block land clicks from falling through to sea
     }
     svgMap.appendChild(p);
   });
@@ -510,8 +510,8 @@ function render(){
     }else{
       p.setAttribute('class','region base-land');
       p.style.fill=SC[i%16];
-      // When seas active: full opacity so land covers sea correctly; no dimming
       if((mode===2||mode===3)&&effCat!=='seas')p.style.opacity='.55';
+      if(effCat==='seas')p.style.pointerEvents='auto'; // block land clicks from falling through to sea
     }
     svgMap.appendChild(p);
   });
