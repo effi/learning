@@ -206,6 +206,9 @@ svg.map{width:100%;height:auto;max-height:60vh;display:block;touch-action:manipu
 </div>
 <!-- Mode 3: Wo ist? card -->
 <div id="wiArea" style="display:none">
+  <div class="ctrl-row" style="margin-bottom:6px">
+    <label class="toggle"><input type="checkbox" id="wiMixToggle"><span class="sw"></span>Alle Kategorien mischen</label>
+  </div>
   <div class="frage-card" id="wiCard"></div>
   <div class="fprog" id="wiProg"></div>
 </div>
@@ -335,7 +338,7 @@ let qPool=[],qAns={},qCorrect=0,qDone=0;
 // Abfrage-Quiz (mode 2)
 let aqPool=[],aqIdx=0,aqAns={},aqCorrect=0,aqAnswered=false,aqCurrent=null;
 // Wo ist? (mode 3)
-let wiPool=[],wiIdx=0,wiAns={},wiCorrect=0,wiAnswered=false,wiCurrent=null;
+let wiPool=[],wiIdx=0,wiAns={},wiCorrect=0,wiAnswered=false,wiCurrent=null,wiMixed=false;
 // Fragen (mode 4)
 let fList=[],fIdx=0,fScore=0,fAnswered=false;
 
@@ -357,7 +360,7 @@ CAT_ORDER.forEach(k=>{
   const c=CAT[k],bt=document.createElement('button');
   bt.className='chip';bt.setAttribute('aria-pressed',k==='states');
   bt.innerHTML='<span class="dot" style="background:'+c.color+'"></span>'+c.label;
-  bt.onclick=()=>{catKey=k;[...chipsEl.children].forEach((ch,j)=>ch.setAttribute('aria-pressed',CAT_ORDER[j]===k));selKey=null;closeOv();renderFilter();initLernQuiz();if(mode===3){initWoIst();renderWiCard();}render();};
+  bt.onclick=()=>{catKey=k;[...chipsEl.children].forEach((ch,j)=>ch.setAttribute('aria-pressed',CAT_ORDER[j]===k));selKey=null;closeOv();renderFilter();initLernQuiz();if(mode===3){wiMixed=false;document.getElementById('wiMixToggle').checked=false;initWoIst();renderWiCard();}render();};
   chipsEl.appendChild(bt);
 });
 
@@ -383,6 +386,12 @@ function setMode(m){
 }
 document.getElementById('lblToggle').onchange=e=>{showLabels=e.target.checked;render();};
 document.getElementById('ovLblToggle').onchange=e=>{showOvLabels=e.target.checked;render();};
+document.getElementById('wiMixToggle').onchange=e=>{
+  wiMixed=e.target.checked;
+  if(wiMixed)[...chipsEl.children].forEach(ch=>ch.setAttribute('aria-pressed','false'));
+  else[...chipsEl.children].forEach((ch,j)=>ch.setAttribute('aria-pressed',CAT_ORDER[j]===catKey));
+  initWoIst();renderWiCard();
+};
 
 /* ━━━━━━ GEAR / FILTER ━━━━━━ */
 document.getElementById('gearBtn').onclick=()=>{
@@ -686,11 +695,21 @@ function showAqSummary(){
 /* ━━━━━━ WO IST? (mode 3) ━━━━━━ */
 function initWoIst(){
   wiPool=[];
-  const al=activeItems(catKey),fl=listFor(catKey);
-  al.forEach(it=>{
-    const idx=fl.findIndex(x=>nameOf(catKey,x)===nameOf(catKey,it));
-    wiPool.push({ck:catKey,idx,key:keyFor(catKey,idx),name:nameOf(catKey,it),info:infoOf(catKey,it),item:it});
-  });
+  if(wiMixed){
+    CAT_ORDER.forEach(ck=>{
+      const al=activeItems(ck),fl=listFor(ck);
+      al.forEach(it=>{
+        const idx=fl.findIndex(x=>nameOf(ck,x)===nameOf(ck,it));
+        wiPool.push({ck,idx,key:keyFor(ck,idx),name:nameOf(ck,it),info:infoOf(ck,it),item:it});
+      });
+    });
+  }else{
+    const al=activeItems(catKey),fl=listFor(catKey);
+    al.forEach(it=>{
+      const idx=fl.findIndex(x=>nameOf(catKey,x)===nameOf(catKey,it));
+      wiPool.push({ck:catKey,idx,key:keyFor(catKey,idx),name:nameOf(catKey,it),info:infoOf(catKey,it),item:it});
+    });
+  }
   shuffle(wiPool);
   wiIdx=0;wiAns={};wiCorrect=0;wiAnswered=false;
   wiCurrent=wiPool.length>0?wiPool[0]:null;
