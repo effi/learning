@@ -457,20 +457,11 @@ function render(){
   const effSel=mode===2&&aqCurrent?aqCurrent.key:mode===3?null:selKey;
   const answered=mode===2?aqAns:mode===3?wiAns:mode===1?qAns:{};
 
-  // 1) Seas background — dezent when not active category
-  SEAS.forEach((s,i)=>{
-    const ck='seas',key=keyFor(ck,i);
-    if(effCat===ck){
-      const a=answered[key];
-      const p=se('path',{d:ppath(s.g),class:'sea-play'+(effSel===key?' sel':'')+(a?' '+a:'')});
-      if(mode===3)p.addEventListener('click',()=>onWiPick(ck,i));
-      else if(mode!==2)p.addEventListener('click',()=>onPick(ck,i,seas[i]));
-      svgMap.appendChild(p);
-    }else{
-      const p=se('path',{d:ppath(s.g),class:'sea-bg'});
-      p.style.fill='var(--land)';
-      svgMap.appendChild(p);
-    }
+  // 1) Seas — always draw as invisible background first (land drawn on top = correct coastline)
+  SEAS.forEach(s=>{
+    const p=se('path',{d:ppath(s.g),class:'sea-bg'});
+    p.style.fill='var(--land)';
+    svgMap.appendChild(p);
   });
 
   // 2) Neighbour countries
@@ -513,6 +504,17 @@ function render(){
     }
     svgMap.appendChild(p);
   });
+
+  // 3b) Seas — drawn AFTER land so they only show in real water areas
+  if(effCat==='seas'){
+    SEAS.forEach((s,i)=>{
+      const ck='seas',key=keyFor(ck,i),a=answered[key];
+      const p=se('path',{d:ppath(s.g),class:'sea-play'+(effSel===key?' sel':'')+(a?' '+a:'')});
+      if(mode===3)p.addEventListener('click',()=>onWiPick(ck,i));
+      else if(mode!==2)p.addEventListener('click',()=>onPick(ck,i,seas[i]));
+      svgMap.appendChild(p);
+    });
+  }
 
   // 4) Mountains
   const showMtn=effCat==='mountains'||mode===2||mode===3;
