@@ -4,20 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#e9ece4">
 <title>Höhenlinien & Karten</title>
 <style>
-:root{
-  --paper:#e9ece4;--paper-2:#f3f5ef;--ink:#26302e;--ink-soft:#5d6764;
-  --line:#c4ccc1;--amber:#c2762d;--right:#3f8f5b;--wrong:#bd5239;
-  --shadow:0 2px 12px rgba(38,48,46,.10);
-}
+:root{--paper:#e9ece4;--paper-2:#f3f5ef;--ink:#26302e;--ink-soft:#5d6764;--line:#c4ccc1;--amber:#c2762d;--right:#3f8f5b;--wrong:#bd5239;--shadow:0 2px 12px rgba(38,48,46,.10);}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{margin:0;padding:0;}
 body{background:var(--paper);color:var(--ink);font-family:-apple-system,system-ui,"Segoe UI",sans-serif;line-height:1.4;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);-webkit-text-size-adjust:100%;}
 .wrap{max-width:560px;margin:0 auto;padding:13px 13px 36px;}
-header{margin-bottom:9px;}
 .eyebrow{font-size:10px;letter-spacing:.32em;text-transform:uppercase;color:var(--amber);font-weight:700;margin:0 0 1px;}
 h1{font-family:Georgia,serif;font-weight:600;font-size:25px;line-height:1.05;margin:0;}
 .lede{color:var(--ink-soft);font-size:12px;margin:2px 0 0;}
@@ -25,7 +19,6 @@ h1{font-family:Georgia,serif;font-weight:600;font-size:25px;line-height:1.05;mar
 .mbtn{flex:1;border:0;background:transparent;color:var(--ink-soft);font-size:11px;font-weight:600;padding:8px 4px;border-radius:8px;cursor:pointer;font-family:inherit;transition:.12s;text-align:center;line-height:1.2;}
 .mbtn[aria-pressed="true"]{background:var(--ink);color:var(--paper-2);}
 .card{background:var(--paper-2);border:1px solid var(--line);border-radius:16px;padding:12px;margin-top:8px;box-shadow:var(--shadow);}
-.card canvas{width:100%;height:auto;display:block;border-radius:10px;}
 .card-title{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--amber);margin:0 0 6px;}
 .card-desc{font-size:13px;color:var(--ink-soft);margin:0 0 10px;line-height:1.5;}
 .info-box{background:var(--paper-2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:8px;}
@@ -34,15 +27,14 @@ h1{font-family:Georgia,serif;font-weight:600;font-size:25px;line-height:1.05;mar
 .quiz-card{background:var(--paper-2);border:1px solid var(--line);border-radius:16px;padding:14px;margin-top:8px;box-shadow:var(--shadow);}
 .quiz-q{font-size:14px;font-weight:600;margin:0 0 10px;line-height:1.4;}
 .quiz-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-.quiz-opt{border:1px solid var(--line);background:var(--paper);border-radius:12px;padding:6px;cursor:pointer;transition:.12s;position:relative;}
+.quiz-opt{border:2px solid var(--line);background:var(--paper);border-radius:12px;padding:6px;cursor:pointer;transition:.12s;position:relative;}
 .quiz-opt canvas{width:100%;height:auto;display:block;border-radius:8px;}
-.quiz-opt.correct{border-color:var(--right);background:rgba(63,143,91,.1);}
-.quiz-opt.incorrect{border-color:var(--wrong);background:rgba(189,82,57,.1);}
-.quiz-opt .badge{position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;font-size:12px;line-height:22px;text-align:center;color:#fff;display:none;}
+.quiz-opt.correct{border-color:var(--right);background:rgba(63,143,91,.08);}
+.quiz-opt.incorrect{border-color:var(--wrong);background:rgba(189,82,57,.08);}
+.quiz-opt .badge{position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;font-size:13px;line-height:24px;text-align:center;color:#fff;display:none;}
 .quiz-opt.correct .badge{display:block;background:var(--right);}
 .quiz-opt.incorrect .badge{display:block;background:var(--wrong);}
-.result-hint{font-size:13px;color:var(--ink-soft);margin:8px 0 0;text-align:center;}
-.result-hint b{color:var(--ink);}
+.result-hint{font-size:13px;color:var(--ink-soft);margin:10px 0 0;text-align:center;}
 .btn{width:100%;margin-top:10px;border:0;background:var(--ink);color:var(--paper-2);font-size:14px;font-weight:700;font-family:inherit;padding:12px;border-radius:12px;cursor:pointer;}
 .btn-row{display:flex;gap:8px;margin-top:10px;}
 .btn-row .btn{flex:1;}
@@ -54,14 +46,7 @@ h1{font-family:Georgia,serif;font-weight:600;font-size:25px;line-height:1.05;mar
 .done-e{font-size:30px;margin:0 0 4px;}
 .done-s{font-family:Georgia,serif;font-size:20px;font-weight:600;margin:3px 0;}
 .done-sub{color:var(--ink-soft);font-size:13px;margin:2px 0 12px;}
-.dual-view{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
-.dual-view canvas{width:100%;height:auto;border-radius:8px;display:block;}
-.dual-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);text-align:center;margin-top:3px;}
-.profile-area{margin-top:8px;}
-.profile-area canvas{width:100%;height:auto;border-radius:8px;display:block;border:1px solid var(--line);}
-.massstab-input{display:flex;align-items:center;gap:8px;margin:10px 0;}
-.massstab-input input{flex:1;border:1px solid var(--line);background:var(--paper);border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit;color:var(--ink);}
-.massstab-input span{font-size:13px;color:var(--ink-soft);}
+canvas{display:block;width:100%;height:auto;border-radius:10px;}
 .fopt{border:1px solid var(--line);background:var(--paper);color:var(--ink);font-size:14px;font-weight:600;font-family:inherit;padding:12px 13px;border-radius:11px;cursor:pointer;text-align:left;transition:.1s;width:100%;margin-bottom:7px;}
 .fopt.correct{background:var(--right);border-color:var(--right);color:#fff;}
 .fopt.incorrect{background:var(--wrong);border-color:var(--wrong);color:#fff;}
@@ -74,411 +59,342 @@ h1{font-family:Georgia,serif;font-weight:600;font-size:25px;line-height:1.05;mar
 <header>
   <p class="eyebrow">Atlas · Übung</p>
   <h1>Höhenlinien & Karten</h1>
-  <p class="lede">Lerne Höhenlinien lesen und Karten verstehen.</p>
+  <p class="lede">Lerne, Höhenlinien und Profile zu lesen.</p>
 </header>
 <div class="mode-bar" role="group">
   <button class="mbtn" id="m0" aria-pressed="true">Lernen</button>
   <button class="mbtn" id="m1" aria-pressed="false">Profil-Quiz</button>
-  <button class="mbtn" id="m2" aria-pressed="false">Bild → Karte</button>
-  <button class="mbtn" id="m3" aria-pressed="false">Maßstab</button>
+  <button class="mbtn" id="m2" aria-pressed="false">Maßstab</button>
 </div>
 <div id="content"></div>
 </div>
 <script>
-/* ━━━━━━ SIMPLEX NOISE ━━━━━━ */
-const F2=.5*(Math.sqrt(3)-1),G2=(3-Math.sqrt(3))/6;
-let perm=new Uint8Array(512),grad=[[1,1],[-1,1],[1,-1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1]];
-function seedNoise(s){const p=new Uint8Array(256);for(let i=0;i<256;i++)p[i]=i;for(let i=255;i>0;i--){s=(s*16807)%2147483647;const j=s%(i+1);[p[i],p[j]]=[p[j],p[i]];}for(let i=0;i<512;i++)perm[i]=p[i&255];}
-function simplex2(x,y){const s=(x+y)*F2,i=Math.floor(x+s),j=Math.floor(y+s),t=(i+j)*G2,X0=i-t,Y0=j-t,x0=x-X0,y0=y-Y0;let i1,j1;if(x0>y0){i1=1;j1=0;}else{i1=0;j1=1;}const x1=x0-i1+G2,y1=y0-j1+G2,x2=x0-1+2*G2,y2=y0-1+2*G2,ii=i&255,jj=j&255;let n0=0,n1=0,n2=0,t0=.5-x0*x0-y0*y0;if(t0>=0){t0*=t0;const gi=perm[ii+perm[jj]]%8;n0=t0*t0*(grad[gi][0]*x0+grad[gi][1]*y0);}let t1=.5-x1*x1-y1*y1;if(t1>=0){t1*=t1;const gi=perm[ii+i1+perm[jj+j1]]%8;n1=t1*t1*(grad[gi][0]*x1+grad[gi][1]*y1);}let t2=.5-x2*x2-y2*y2;if(t2>=0){t2*=t2;const gi=perm[ii+1+perm[jj+1]]%8;n2=t2*t2*(grad[gi][0]*x2+grad[gi][1]*y2);}return 70*(n0+n1+n2);}
+/* ━━━━━━ SIMPLE TERRAIN: analytical shapes ━━━━━━ */
+function terrain_peak(x,y){const dx=x-.5,dy=y-.5;return 1-Math.sqrt(dx*dx+dy*dy)*2;}
+function terrain_ridge(x,y){return 1-Math.abs(y-.5)*2;}
+function terrain_valley(x,y){return Math.abs(y-.5)*2;}
+function terrain_slope(x,y){return x;}
+function terrain_plateau(x,y){const dx=x-.5,dy=y-.5;const d=Math.sqrt(dx*dx+dy*dy);return d<.25?1:Math.max(0,1-(d-.25)*3);}
+function terrain_saddle(x,y){const dx=(x-.5)*2,dy=(y-.5)*2;return .5+dx*dx*.3-dy*dy*.4;}
 
-/* ━━━━━━ TERRAIN GENERATION ━━━━━━ */
-function genHeightmap(w,h,seed,opts){
-  seedNoise(seed);
-  const o=opts||{};
-  const octaves=o.octaves||2,persist=o.persist||0.3,scale=o.scale||2.5;
-  const map=new Float32Array(w*h);
-  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
-    let v=0,amp=1,freq=1,maxA=0;
-    for(let oc=0;oc<octaves;oc++){
-      v+=amp*simplex2((x/w)*scale*freq,(y/h)*scale*freq);
-      maxA+=amp;amp*=persist;freq*=2;
-    }
-    v=v/maxA;
-    if(o.type==='peak'){const dx=(x/w-.5)*2,dy=(y/h-.5)*2;v=v*.25+(1-Math.sqrt(dx*dx+dy*dy))*.75;}
-    else if(o.type==='ridge'){const dy=Math.abs(y/h-.5)*2;v=v*.25+(1-dy)*.75;}
-    else if(o.type==='valley'){const dy=Math.abs(y/h-.5)*2;v=v*.25+dy*.75;}
-    else if(o.type==='plateau'){v=v*.15+.55;}
-    else if(o.type==='slope'){const dx=x/w;v=v*.2+dx*.8;}
-    else if(o.type==='saddle'){const dx=(x/w-.5)*2,dy=(y/h-.5)*2;v=v*.2+(.7-dx*dx*.5+dy*dy*.4)*.8;}
-    map[y*w+x]=v;
-  }
-  let mn=Infinity,mx=-Infinity;
-  for(let i=0;i<map.length;i++){if(map[i]<mn)mn=map[i];if(map[i]>mx)mx=map[i];}
-  const range=mx-mn||1;
-  for(let i=0;i<map.length;i++)map[i]=(map[i]-mn)/range;
-  return map;
+const SHAPES={
+  peak:{fn:terrain_peak,name:'Berg',desc:'Ein einzelner Berg. Die Höhenlinien bilden Kreise — oben der Gipfel.'},
+  ridge:{fn:terrain_ridge,name:'Bergrücken',desc:'Ein langer Kamm. Die Linien laufen parallel zum Rücken.'},
+  valley:{fn:terrain_valley,name:'Tal',desc:'Ein Tal zwischen zwei Hängen. Unten in der Mitte ist es am tiefsten.'},
+  slope:{fn:terrain_slope,name:'Hang',desc:'Ein gleichmäßiger Hang. Links unten, rechts oben — alle Linien gleich weit.'},
+  plateau:{fn:terrain_plateau,name:'Hochebene',desc:'Oben flach (Linien weit), an den Seiten steil (Linien eng).'},
+};
+const SHAPE_KEYS=Object.keys(SHAPES);
+
+function getHeight(shape,x,y,minAlt,maxAlt){
+  const v=Math.max(0,Math.min(1,SHAPES[shape].fn(x,y)));
+  return minAlt+v*(maxAlt-minAlt);
 }
 
-/* ━━━━━━ DRAWING: CONTOUR LINES with meter labels ━━━━━━ */
-function drawContours(canvas,map,w,h,minAlt,maxAlt,interval,opts){
+/* ━━━━━━ PATH GENERATION (snaking line A→B) ━━━━━━ */
+function genPath(seed,nPoints){
+  let s=seed;const rng=()=>{s=(s*16807)%2147483647;return s/2147483647;};
+  const pts=[{x:0.05,y:0.3+rng()*0.4}];
+  const endY=0.3+rng()*0.4;
+  for(let i=1;i<nPoints-1;i++){
+    const t=i/(nPoints-1);
+    const baseY=pts[0].y*(1-t)+endY*t;
+    const wobble=(rng()-.5)*.35;
+    pts.push({x:t*.9+.05,y:Math.max(.08,Math.min(.92,baseY+wobble))});
+  }
+  pts.push({x:0.95,y:endY});
+  return pts;
+}
+
+/* ━━━━━━ DRAWING: CONTOUR MAP with labels + path ━━━━━━ */
+function drawContourMap(canvas,shape,minAlt,maxAlt,interval,path,opts){
   const o=opts||{};
-  const cW=o.canvasW||w*3,cH=o.canvasH||h*3;
-  canvas.width=cW;canvas.height=cH;
+  const W=300,H=300;
+  canvas.width=W;canvas.height=H;
   const ctx=canvas.getContext('2d');
-  const sx=cW/w,sy=cH/h;
-  ctx.fillStyle=o.bg||'#f8f6f0';ctx.fillRect(0,0,cW,cH);
-  const altRange=maxAlt-minAlt;
-  const nLevels=Math.floor(altRange/interval);
-  ctx.strokeStyle=o.color||'#8b6b3a';
-  for(let lv=1;lv<=nLevels;lv++){
-    const alt=minAlt+lv*interval;
-    const threshold=lv*interval/altRange;
-    const isMajor=(alt%100===0);
-    ctx.lineWidth=(isMajor?2.2:1)*sx/3;
+  ctx.fillStyle='#f9f7f1';ctx.fillRect(0,0,W,H);
+
+  const levels=[];
+  for(let alt=minAlt+interval;alt<maxAlt;alt+=interval)levels.push(alt);
+
+  // Draw contours via marching squares on a small grid
+  const gw=80,gh=80;
+  const grid=new Float32Array(gw*gh);
+  for(let gy=0;gy<gh;gy++)for(let gx=0;gx<gw;gx++){
+    grid[gy*gw+gx]=getHeight(shape,gx/(gw-1),gy/(gh-1),minAlt,maxAlt);
+  }
+  const sx=W/gw,sy=H/gh;
+
+  levels.forEach(alt=>{
+    const isMajor=(alt%200===0);
+    ctx.strokeStyle=isMajor?'#6b4e20':'#9a7a48';
+    ctx.lineWidth=isMajor?2.5:1.5;
     ctx.beginPath();
-    for(let y=0;y<h-1;y++)for(let x=0;x<w-1;x++){
-      const tl=map[y*w+x]>=threshold?1:0;
-      const tr=map[y*w+x+1]>=threshold?1:0;
-      const br=map[(y+1)*w+x+1]>=threshold?1:0;
-      const bl=map[(y+1)*w+x]>=threshold?1:0;
-      const cell=tl*8+tr*4+br*2+bl;
-      if(cell===0||cell===15)continue;
-      const lerp=(a,b2)=>(threshold-a)/(b2-a);
-      const v_tl=map[y*w+x],v_tr=map[y*w+x+1],v_br=map[(y+1)*w+x+1],v_bl=map[(y+1)*w+x];
-      const t=lerp(v_tl,v_tr),r=lerp(v_tr,v_br),b2=lerp(v_bl,v_br),l=lerp(v_tl,v_bl);
-      const segs=[];
-      if(cell===1||cell===14)segs.push([x,y+l,x+b2,y+1]);
-      else if(cell===2||cell===13)segs.push([x+b2,y+1,x+1,y+r]);
-      else if(cell===3||cell===12)segs.push([x,y+l,x+1,y+r]);
-      else if(cell===4||cell===11)segs.push([x+t,y,x+1,y+r]);
-      else if(cell===5){segs.push([x+t,y,x+1,y+r]);segs.push([x,y+l,x+b2,y+1]);}
-      else if(cell===6||cell===9)segs.push([x+t,y,x+b2,y+1]);
-      else if(cell===7||cell===8)segs.push([x,y+l,x+t,y]);
-      else if(cell===10){segs.push([x,y+l,x+t,y]);segs.push([x+b2,y+1,x+1,y+r]);}
-      segs.forEach(s=>{ctx.moveTo(s[0]*sx,s[1]*sy);ctx.lineTo(s[2]*sx,s[3]*sy);});
-    }
-    ctx.stroke();
-    // Label major contours
-    if(isMajor&&o.labels){
-      ctx.font='bold '+Math.round(9*sx/3)+'px -apple-system,sans-serif';
-      ctx.fillStyle='#6b5030';ctx.textAlign='center';
-      for(let y=Math.floor(h*.3);y<Math.floor(h*.7);y+=6){
-        for(let x=Math.floor(w*.25);x<Math.floor(w*.75);x+=6){
-          if(Math.abs(map[y*w+x]-threshold)<interval/altRange*.4){
-            ctx.fillText(alt+'m',x*sx,y*sy+3);y=h;break;
-          }
-        }
-      }
-    }
-  }
-  // Draw A-B line if requested
-  if(o.profileRow!=null){
-    const py=o.profileRow*cH;
-    ctx.setLineDash([4,3]);ctx.strokeStyle='#c2762d';ctx.lineWidth=2;
-    ctx.beginPath();ctx.moveTo(0,py);ctx.lineTo(cW,py);ctx.stroke();ctx.setLineDash([]);
-    ctx.font='bold 12px -apple-system,sans-serif';ctx.fillStyle='#c2762d';
-    ctx.textAlign='left';ctx.fillText('A',4,py-5);
-    ctx.textAlign='right';ctx.fillText('B',cW-4,py-5);
-  }
-}
-
-/* ━━━━━━ DRAWING: PROFILE with guide lines ━━━━━━ */
-function drawProfile(canvas,map,w,h,mapW,mapH,row,minAlt,maxAlt,interval,opts){
-  const o=opts||{};
-  const cW=o.canvasW||300,cH=o.canvasH||140;
-  canvas.width=cW;canvas.height=cH;
-  const ctx=canvas.getContext('2d');
-  ctx.fillStyle=o.bg||'#f8f6f0';ctx.fillRect(0,0,cW,cH);
-  const pad={l:38,r:10,t:12,b:22};
-  const plotW=cW-pad.l-pad.r,plotH=cH-pad.t-pad.b;
-  // Grid lines for each altitude level
-  const altRange=maxAlt-minAlt;
-  const nLevels=Math.floor(altRange/interval);
-  ctx.strokeStyle='#ddd';ctx.lineWidth=0.8;
-  ctx.font='9px -apple-system,sans-serif';ctx.fillStyle='#999';ctx.textAlign='right';
-  for(let lv=0;lv<=nLevels;lv++){
-    const alt=minAlt+lv*interval;
-    const yy=pad.t+plotH*(1-lv/nLevels);
-    ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(pad.l+plotW,yy);ctx.stroke();
-    if(alt%100===0||nLevels<=6)ctx.fillText(alt+'m',pad.l-4,yy+3);
-  }
-  // Axes
-  ctx.strokeStyle='#aaa';ctx.lineWidth=1.2;
-  ctx.beginPath();ctx.moveTo(pad.l,pad.t);ctx.lineTo(pad.l,pad.t+plotH);ctx.lineTo(pad.l+plotW,pad.t+plotH);ctx.stroke();
-  // Profile line
-  const yRow=Math.floor(row*mapH);
-  ctx.beginPath();ctx.strokeStyle='#5a4020';ctx.lineWidth=2.5;
-  for(let x=0;x<mapW;x++){
-    const v=map[yRow*mapW+x];
-    const px=pad.l+x/mapW*plotW;
-    const py=pad.t+plotH*(1-v);
-    x===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
-  }
-  ctx.stroke();
-  // Fill below
-  ctx.lineTo(pad.l+plotW,pad.t+plotH);ctx.lineTo(pad.l,pad.t+plotH);ctx.closePath();
-  ctx.fillStyle='rgba(180,150,100,.15)';ctx.fill();
-  // Guide lines from contour to profile (like in the worksheet)
-  if(o.guides){
-    ctx.setLineDash([2,2]);ctx.strokeStyle='rgba(0,160,160,.35)';ctx.lineWidth=0.8;
-    for(let lv=1;lv<=nLevels;lv++){
-      const threshold=lv/nLevels;
-      for(let x=0;x<mapW;x++){
-        if(x>0&&((map[yRow*mapW+x]>=threshold)!==(map[yRow*mapW+x-1]>=threshold))){
-          const px=pad.l+x/mapW*plotW;
-          ctx.beginPath();ctx.moveTo(px,pad.t);ctx.lineTo(px,pad.t+plotH);ctx.stroke();
-          break;
-        }
-      }
-    }
-    ctx.setLineDash([]);
-  }
-  // A/B labels
-  ctx.fillStyle='#c2762d';ctx.font='bold 11px -apple-system,sans-serif';
-  ctx.textAlign='center';ctx.fillText('A',pad.l,cH-4);ctx.fillText('B',pad.l+plotW,cH-4);
-}
-
-/* ━━━━━━ DRAWING: SATELLITE VIEW ━━━━━━ */
-function drawSatellite(canvas,map,w,h,seed2){
-  const cW=w*3,cH=h*3;canvas.width=cW;canvas.height=cH;
-  const ctx=canvas.getContext('2d');
-  seedNoise(seed2||42);
-  const imgData=ctx.createImageData(cW,cH);
-  for(let cy=0;cy<cH;cy++)for(let cx=0;cx<cW;cx++){
-    const x=cx/3,y=cy/3;
-    const xi=Math.min(w-1,Math.floor(x)),yi=Math.min(h-1,Math.floor(y));
-    const v=map[yi*w+xi];
-    const noise2=simplex2(cx/cW*8,cy/cH*8)*.12;
-    let r,g,b;
-    if(v<0.15){r=50;g=90;b=150;}
-    else if(v<0.25){r=60+noise2*40;g=130+noise2*20;b=60;}
-    else if(v<0.5){r=Math.floor(45+v*40+noise2*30);g=Math.floor(115-v*10+noise2*25);b=Math.floor(35+noise2*15);}
-    else if(v<0.7){r=Math.floor(130+v*50+noise2*25);g=Math.floor(125+v*30+noise2*15);b=Math.floor(55+noise2*20);}
-    else if(v<0.85){r=Math.floor(155+v*30);g=Math.floor(135+v*15);b=Math.floor(95+v*10);}
-    else{r=215+noise2*15;g=215+noise2*10;b=220;}
-    r=Math.max(0,Math.min(255,Math.floor(r)));g=Math.max(0,Math.min(255,Math.floor(g)));b=Math.max(0,Math.min(255,Math.floor(b)));
-    const idx=(cy*cW+cx)*4;
-    imgData.data[idx]=r;imgData.data[idx+1]=g;imgData.data[idx+2]=b;imgData.data[idx+3]=255;
-  }
-  ctx.putImageData(imgData,0,0);
-}
-
-/* ━━━━━━ DRAWING: MAP VIEW ━━━━━━ */
-function drawMapView(canvas,map,w,h,minAlt,maxAlt,interval,seed2){
-  const cW=w*3,cH=h*3;canvas.width=cW;canvas.height=cH;
-  const ctx=canvas.getContext('2d');
-  seedNoise(seed2||42);
-  const imgData=ctx.createImageData(cW,cH);
-  for(let cy=0;cy<cH;cy++)for(let cx=0;cx<cW;cx++){
-    const xi=Math.min(w-1,Math.floor(cx/3)),yi=Math.min(h-1,Math.floor(cy/3));
-    const v=map[yi*w+xi];
-    let r,g,b;
-    if(v<0.15){r=180;g=215;b=240;}
-    else if(v<0.35){r=200;g=232;b=200;}
-    else if(v<0.55){r=242;g=238;b=215;}
-    else if(v<0.75){r=238;g=218;b=188;}
-    else{r=232;g=210;b=200;}
-    const idx=(cy*cW+cx)*4;imgData.data[idx]=r;imgData.data[idx+1]=g;imgData.data[idx+2]=b;imgData.data[idx+3]=255;
-  }
-  ctx.putImageData(imgData,0,0);
-  // Contours overlay
-  const altRange=maxAlt-minAlt,nLevels=Math.floor(altRange/interval);
-  const sx=cW/w,sy=cH/h;
-  ctx.strokeStyle='rgba(120,80,30,.45)';
-  for(let lv=1;lv<=nLevels;lv++){
-    const alt=minAlt+lv*interval;
-    const threshold=lv*interval/altRange;
-    ctx.lineWidth=(alt%100===0?1.8:0.8);
-    ctx.beginPath();
-    for(let y=0;y<h-1;y++)for(let x=0;x<w-1;x++){
-      const tl=map[y*w+x]>=threshold?1:0,tr=map[y*w+x+1]>=threshold?1:0;
-      const br=map[(y+1)*w+x+1]>=threshold?1:0,bl=map[(y+1)*w+x]>=threshold?1:0;
+    for(let gy=0;gy<gh-1;gy++)for(let gx=0;gx<gw-1;gx++){
+      const tl=grid[gy*gw+gx]>=alt?1:0,tr=grid[gy*gw+gx+1]>=alt?1:0;
+      const br=grid[(gy+1)*gw+gx+1]>=alt?1:0,bl=grid[(gy+1)*gw+gx]>=alt?1:0;
       const cell=tl*8+tr*4+br*2+bl;if(cell===0||cell===15)continue;
-      const lerp=(a,b2)=>(threshold-a)/(b2-a);
-      const v_tl=map[y*w+x],v_tr=map[y*w+x+1],v_br=map[(y+1)*w+x+1],v_bl=map[(y+1)*w+x];
-      const t=lerp(v_tl,v_tr),r2=lerp(v_tr,v_br),b2=lerp(v_bl,v_br),l=lerp(v_tl,v_bl);
+      const lerp=(a,b)=>(alt-a)/(b-a);
+      const v00=grid[gy*gw+gx],v10=grid[gy*gw+gx+1],v11=grid[(gy+1)*gw+gx+1],v01=grid[(gy+1)*gw+gx];
+      const t=lerp(v00,v10),r=lerp(v10,v11),b2=lerp(v01,v11),l=lerp(v00,v01);
       const segs=[];
-      if(cell===1||cell===14)segs.push([x,y+l,x+b2,y+1]);
-      else if(cell===2||cell===13)segs.push([x+b2,y+1,x+1,y+r2]);
-      else if(cell===3||cell===12)segs.push([x,y+l,x+1,y+r2]);
-      else if(cell===4||cell===11)segs.push([x+t,y,x+1,y+r2]);
-      else if(cell===5){segs.push([x+t,y,x+1,y+r2]);segs.push([x,y+l,x+b2,y+1]);}
-      else if(cell===6||cell===9)segs.push([x+t,y,x+b2,y+1]);
-      else if(cell===7||cell===8)segs.push([x,y+l,x+t,y]);
-      else if(cell===10){segs.push([x,y+l,x+t,y]);segs.push([x+b2,y+1,x+1,y+r2]);}
+      if(cell===1||cell===14)segs.push([gx,gy+l,gx+b2,gy+1]);
+      else if(cell===2||cell===13)segs.push([gx+b2,gy+1,gx+1,gy+r]);
+      else if(cell===3||cell===12)segs.push([gx,gy+l,gx+1,gy+r]);
+      else if(cell===4||cell===11)segs.push([gx+t,gy,gx+1,gy+r]);
+      else if(cell===5){segs.push([gx+t,gy,gx+1,gy+r]);segs.push([gx,gy+l,gx+b2,gy+1]);}
+      else if(cell===6||cell===9)segs.push([gx+t,gy,gx+b2,gy+1]);
+      else if(cell===7||cell===8)segs.push([gx,gy+l,gx+t,gy]);
+      else if(cell===10){segs.push([gx,gy+l,gx+t,gy]);segs.push([gx+b2,gy+1,gx+1,gy+r]);}
       segs.forEach(s=>{ctx.moveTo(s[0]*sx,s[1]*sy);ctx.lineTo(s[2]*sx,s[3]*sy);});
     }
     ctx.stroke();
-  }
-  // Forest symbols
-  for(let y=4;y<h-4;y+=5)for(let x=4;x<w-4;x+=5){
-    const v=map[y*w+x];
-    if(v>0.22&&v<0.45&&simplex2(x/w*5,y/h*5)>0.15){
-      ctx.fillStyle='rgba(40,120,50,.45)';
-      ctx.beginPath();ctx.arc(x*sx,y*sy,sx*0.8,0,Math.PI*2);ctx.fill();
+
+    // Label this contour line
+    ctx.font='bold 12px -apple-system,sans-serif';
+    ctx.fillStyle='#5a3e15';ctx.textAlign='center';
+    // Find a point on this contour to place label
+    let placed=false;
+    for(let gx=Math.floor(gw*.3);gx<Math.floor(gw*.75)&&!placed;gx+=3){
+      for(let gy=Math.floor(gh*.2);gy<Math.floor(gh*.8)&&!placed;gy+=3){
+        const v=grid[gy*gw+gx];
+        if(Math.abs(v-alt)<interval*.15){
+          // Clear background for readability
+          const tx=gx*sx,ty=gy*sy;
+          const m=ctx.measureText(alt+'m');
+          ctx.fillStyle='rgba(249,247,241,.85)';
+          ctx.fillRect(tx-m.width/2-2,ty-8,m.width+4,13);
+          ctx.fillStyle='#5a3e15';
+          ctx.fillText(alt+'m',tx,ty+3);
+          placed=true;
+        }
+      }
     }
+  });
+
+  // Draw path
+  if(path&&path.length>1){
+    ctx.setLineDash([6,4]);
+    ctx.strokeStyle='#c2762d';ctx.lineWidth=2.5;
+    ctx.beginPath();
+    path.forEach((p,i)=>{
+      const px=p.x*W,py=p.y*H;
+      i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
+    });
+    ctx.stroke();ctx.setLineDash([]);
+    // A and B labels
+    ctx.font='bold 14px Georgia,serif';ctx.fillStyle='#c2762d';
+    ctx.textAlign='center';
+    ctx.fillText('A',path[0].x*W,path[0].y*H-10);
+    ctx.fillText('B',path[path.length-1].x*W,path[path.length-1].y*H-10);
+    // Dots at A and B
+    ctx.fillStyle='#c2762d';
+    ctx.beginPath();ctx.arc(path[0].x*W,path[0].y*H,4,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(path[path.length-1].x*W,path[path.length-1].y*H,4,0,Math.PI*2);ctx.fill();
   }
 }
 
-/* ━━━━━━ TERRAIN PRESETS ━━━━━━ */
-const TERRAINS=[
-  {name:'Einzelner Berg',desc:'Geschlossene Kreise werden zur Mitte enger — der Gipfel. Die Höhenzahlen steigen nach innen.',type:'peak',minAlt:200,maxAlt:700,interval:50},
-  {name:'Bergrücken',desc:'Längliche, parallele Höhenlinien. Das Profil zeigt einen Kamm, der sich links-rechts erstreckt.',type:'ridge',minAlt:300,maxAlt:800,interval:50},
-  {name:'Tal',desc:'V- oder U-förmige Linien zeigen ein Tal. Die Höhenzahlen steigen zu den Seiten hin.',type:'valley',minAlt:100,maxAlt:500,interval:50},
-  {name:'Gleichmäßiger Hang',desc:'Parallele, gleichmäßig verteilte Linien. Das Profil ist eine schiefe Ebene.',type:'slope',minAlt:200,maxAlt:600,interval:50},
-  {name:'Hochebene',desc:'Auf der Ebene liegen die Linien weit auseinander — flaches Gelände in der Höhe.',type:'plateau',minAlt:400,maxAlt:650,interval:50},
-  {name:'Sattel',desc:'Zwei Kuppen mit einer Einsattelung dazwischen. Im Profil sieht man zwei Höcker.',type:'saddle',minAlt:300,maxAlt:750,interval:50},
-];
+/* ━━━━━━ DRAWING: PROFILE along path ━━━━━━ */
+function drawProfile(canvas,shape,minAlt,maxAlt,interval,path,opts){
+  const o=opts||{};
+  const W=300,H=160;
+  canvas.width=W;canvas.height=H;
+  const ctx=canvas.getContext('2d');
+  ctx.fillStyle='#f9f7f1';ctx.fillRect(0,0,W,H);
+
+  const pad={l:40,r:12,t:14,b:24};
+  const pw=W-pad.l-pad.r,ph=H-pad.t-pad.b;
+
+  // Grid lines + altitude labels
+  const levels=[];
+  for(let alt=minAlt;alt<=maxAlt;alt+=interval)levels.push(alt);
+  ctx.font='10px -apple-system,sans-serif';ctx.textAlign='right';
+  levels.forEach(alt=>{
+    const y=pad.t+ph*(1-(alt-minAlt)/(maxAlt-minAlt));
+    ctx.strokeStyle=(alt%200===0)?'#ccc':'#e5e5e5';
+    ctx.lineWidth=(alt%200===0)?1:0.6;
+    ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+pw,y);ctx.stroke();
+    ctx.fillStyle='#888';ctx.fillText(alt+'m',pad.l-4,y+3);
+  });
+
+  // Axes
+  ctx.strokeStyle='#999';ctx.lineWidth=1.2;
+  ctx.beginPath();ctx.moveTo(pad.l,pad.t);ctx.lineTo(pad.l,pad.t+ph);ctx.lineTo(pad.l+pw,pad.t+ph);ctx.stroke();
+
+  // Sample heights along path
+  const nSamples=60;
+  const heights=[];
+  for(let i=0;i<nSamples;i++){
+    const t=i/(nSamples-1);
+    // Interpolate along path
+    const pathLen=path.length-1;
+    const fi=t*pathLen;
+    const idx=Math.min(pathLen-1,Math.floor(fi));
+    const frac=fi-idx;
+    const px=path[idx].x*(1-frac)+path[idx+1].x*frac;
+    const py=path[idx].y*(1-frac)+path[idx+1].y*frac;
+    heights.push(getHeight(shape,px,py,minAlt,maxAlt));
+  }
+
+  // Draw profile fill
+  ctx.beginPath();
+  heights.forEach((h,i)=>{
+    const x=pad.l+i/(nSamples-1)*pw;
+    const y=pad.t+ph*(1-(h-minAlt)/(maxAlt-minAlt));
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.lineTo(pad.l+pw,pad.t+ph);ctx.lineTo(pad.l,pad.t+ph);ctx.closePath();
+  ctx.fillStyle='rgba(194,118,45,.12)';ctx.fill();
+
+  // Draw profile line
+  ctx.beginPath();ctx.strokeStyle='#5a3e15';ctx.lineWidth=2.5;
+  heights.forEach((h,i)=>{
+    const x=pad.l+i/(nSamples-1)*pw;
+    const y=pad.t+ph*(1-(h-minAlt)/(maxAlt-minAlt));
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+
+  // A / B labels
+  ctx.font='bold 12px Georgia,serif';ctx.fillStyle='#c2762d';ctx.textAlign='center';
+  ctx.fillText('A',pad.l,H-6);ctx.fillText('B',pad.l+pw,H-6);
+}
 
 /* ━━━━━━ APP STATE ━━━━━━ */
-let mode=0,quizScore=0,quizRound=0;
-const MAX_ROUNDS=8;
+let mode=0,quizScore=0,quizRound=0,learnIdx=0;
+const MAX_ROUNDS=6;
 const contentEl=document.getElementById('content');
+let rngSeed=Date.now()%100000;
+function rng(){rngSeed=(rngSeed*16807)%2147483647;return rngSeed/2147483647;}
 
 /* ━━━━━━ MODE SWITCHING ━━━━━━ */
-[0,1,2,3].forEach(i=>document.getElementById('m'+i).onclick=()=>setMode(i));
+[0,1,2].forEach(i=>document.getElementById('m'+i).onclick=()=>setMode(i));
 function setMode(m){
   mode=m;
-  [0,1,2,3].forEach(j=>document.getElementById('m'+j).setAttribute('aria-pressed',j===m));
+  [0,1,2].forEach(j=>document.getElementById('m'+j).setAttribute('aria-pressed',j===m));
   if(m===0)renderLearn();
-  else if(m===1){quizScore=0;quizRound=0;renderProfileQuiz();}
-  else if(m===2){quizScore=0;quizRound=0;renderSatQuiz();}
-  else{quizScore=0;quizRound=0;renderMassstab();}
+  else if(m===1){quizScore=0;quizRound=0;rngSeed=Date.now()%100000;renderQuiz();}
+  else{quizScore=0;quizRound=0;rngSeed=Date.now()%100000;renderMassstab();}
 }
 
 /* ━━━━━━ LEARN MODE ━━━━━━ */
-let learnIdx=0;
+const LEARN=[
+  {shape:'peak',minAlt:200,maxAlt:600,interval:100,pathSeed:42},
+  {shape:'ridge',minAlt:300,maxAlt:700,interval:100,pathSeed:77},
+  {shape:'valley',minAlt:100,maxAlt:500,interval:100,pathSeed:123},
+  {shape:'slope',minAlt:200,maxAlt:600,interval:100,pathSeed:55},
+  {shape:'plateau',minAlt:300,maxAlt:700,interval:100,pathSeed:99},
+];
+
 function renderLearn(){
-  const t=TERRAINS[learnIdx];
-  const seed=7919+learnIdx*311;
-  const mapW=60,mapH=60;
-  const hmap=genHeightmap(mapW,mapH,seed,{type:t.type,scale:2.5,octaves:2,persist:0.3});
-  let html='<div class="card"><div class="card-title">'+t.name+'</div><div class="card-desc">'+t.desc+'</div>';
-  html+='<canvas id="cContour"></canvas>';
-  html+='<div class="profile-area"><canvas id="cProfile"></canvas></div>';
+  const l=LEARN[learnIdx];
+  const s=SHAPES[l.shape];
+  const path=genPath(l.pathSeed,6);
+
+  let html='<div class="card"><div class="card-title">'+s.name+'</div>';
+  html+='<div class="card-desc">'+s.desc+'</div>';
+  html+='<canvas id="cMap"></canvas>';
+  html+='<p style="font-size:11px;color:var(--ink-soft);margin:6px 0 2px;text-align:center;">Profil entlang der Linie A → B:</p>';
+  html+='<canvas id="cProf"></canvas>';
   html+='</div>';
-  html+='<div class="info-box"><h3>Höhenlinien lesen:</h3>';
-  html+='<p><b>Eng beieinander</b> = steiler Hang</p>';
-  html+='<p><b>Weit auseinander</b> = flaches Gelände</p>';
-  html+='<p><b>Geschlossene Kreise</b> = Kuppe (Zahlen steigen nach innen)</p>';
-  html+='<p><b>Jede 100m-Linie</b> ist dicker (Zähllinie)</p>';
-  html+='<p><b>Profil</b> = Querschnitt entlang der Linie A → B</p></div>';
-  html+='<div class="btn-row"><button class="btn" id="prevL">← Zurück</button><button class="btn" id="nextL">Weiter →</button></div>';
+  html+='<div class="info-box"><h3>Merke dir:</h3>';
+  html+='<p><b>Linien eng</b> = steiler Hang</p>';
+  html+='<p><b>Linien weit</b> = flaches Gelände</p>';
+  html+='<p><b>Kreise</b> = Gipfel (Zahlen steigen nach innen)</p>';
+  html+='<p>Die <b style="color:var(--amber)">gestrichelte Linie</b> zeigt den Weg, entlang dem das Profil gezeichnet wird.</p></div>';
+  html+='<div class="btn-row"><button class="btn" id="prevL">←</button><button class="btn" id="nextL">Weiter →</button></div>';
   contentEl.innerHTML=html;
-  drawContours(document.getElementById('cContour'),hmap,mapW,mapH,t.minAlt,t.maxAlt,t.interval,{labels:true,profileRow:0.5});
-  drawProfile(document.getElementById('cProfile'),hmap,300,140,mapW,mapH,0.5,t.minAlt,t.maxAlt,t.interval,{guides:true});
-  document.getElementById('prevL').onclick=()=>{learnIdx=(learnIdx-1+TERRAINS.length)%TERRAINS.length;renderLearn();};
-  document.getElementById('nextL').onclick=()=>{learnIdx=(learnIdx+1)%TERRAINS.length;renderLearn();};
+
+  drawContourMap(document.getElementById('cMap'),l.shape,l.minAlt,l.maxAlt,l.interval,path);
+  drawProfile(document.getElementById('cProf'),l.shape,l.minAlt,l.maxAlt,l.interval,path);
+
+  document.getElementById('prevL').onclick=()=>{learnIdx=(learnIdx-1+LEARN.length)%LEARN.length;renderLearn();};
+  document.getElementById('nextL').onclick=()=>{learnIdx=(learnIdx+1)%LEARN.length;renderLearn();};
 }
 
 /* ━━━━━━ PROFILE QUIZ ━━━━━━ */
-function renderProfileQuiz(){
-  if(quizRound>=MAX_ROUNDS){renderDone(renderProfileQuiz);return;}
-  const mapW=50,mapH=50;
-  const allTypes=['peak','ridge','valley','slope'];
-  const chosen=[...allTypes];
-  for(let i=chosen.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[chosen[i],chosen[j]]=[chosen[j],chosen[i]];}
-  const seeds=chosen.map((_,i)=>Math.floor(Math.random()*90000)+i*1000);
-  const hmaps=chosen.map((t,i)=>genHeightmap(mapW,mapH,seeds[i],{type:t,scale:2.2,octaves:2,persist:0.25}));
-  const correct=Math.floor(Math.random()*4);
-  let html='<div class="quiz-card"><div class="card-title">Frage '+(quizRound+1)+' / '+MAX_ROUNDS+'</div>';
-  html+='<div class="quiz-q">Welche Höhenlinienkarte gehört zu diesem Profil?</div>';
-  html+='<canvas id="cQProfile"></canvas>';
-  html+='<div class="quiz-grid">';
-  for(let i=0;i<4;i++)html+='<div class="quiz-opt" data-i="'+i+'"><canvas id="cQ'+i+'"></canvas><span class="badge"></span></div>';
-  html+='</div><div id="quizFb"></div></div>';
-  html+='<div class="scorebar"><div class="stat"><b id="qS">'+quizScore+'</b><small>Richtig</small></div><div class="stat"><b>'+quizRound+'</b><small>von '+MAX_ROUNDS+'</small></div></div>';
-  contentEl.innerHTML=html;
-  drawProfile(document.getElementById('cQProfile'),hmaps[correct],300,120,mapW,mapH,0.5,200,700,50,{});
-  for(let i=0;i<4;i++)drawContours(document.getElementById('cQ'+i),hmaps[i],mapW,mapH,200,700,50,{canvasW:150,canvasH:150});
-  document.querySelectorAll('.quiz-opt').forEach(el=>{
-    el.onclick=()=>{
-      const pick=parseInt(el.dataset.i);
-      document.querySelectorAll('.quiz-opt').forEach(o=>{o.onclick=null;const idx=parseInt(o.dataset.i);if(idx===correct)o.classList.add('correct');else if(idx===pick&&pick!==correct)o.classList.add('incorrect');});
-      document.querySelectorAll('.quiz-opt .badge').forEach((b,bi)=>{if(bi===correct)b.textContent='✓';else if(bi===pick&&pick!==correct)b.textContent='✗';});
-      if(pick===correct)quizScore++;quizRound++;
-      document.getElementById('qS').textContent=quizScore;
-      document.getElementById('quizFb').innerHTML='<p class="result-hint">'+(pick===correct?'✓ Richtig!':'✗ Falsch — die grüne war richtig.')+'</p><button class="btn" id="qNext">'+(quizRound<MAX_ROUNDS?'Nächste →':'Auswertung →')+'</button>';
-      document.getElementById('qNext').onclick=renderProfileQuiz;
-    };
-  });
-}
+function renderQuiz(){
+  if(quizRound>=MAX_ROUNDS){renderDone(()=>{quizScore=0;quizRound=0;rngSeed=Date.now()%100000;renderQuiz();});return;}
 
-/* ━━━━━━ SATELLITE ↔ MAP QUIZ ━━━━━━ */
-function renderSatQuiz(){
-  if(quizRound>=MAX_ROUNDS){renderDone(renderSatQuiz);return;}
-  const mapW=60,mapH=60;
-  const allTypes=['peak','ridge','valley','plateau'];
-  const chosen=[...allTypes];
-  for(let i=chosen.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[chosen[i],chosen[j]]=[chosen[j],chosen[i]];}
-  const seeds=chosen.map((_,i)=>Math.floor(Math.random()*90000)+i*777);
-  const hmaps=chosen.map((t,i)=>genHeightmap(mapW,mapH,seeds[i],{type:t,scale:2.5,octaves:2,persist:0.3}));
-  const correct=Math.floor(Math.random()*4);
+  // Pick 4 different shapes
+  const pool=[...SHAPE_KEYS];
+  for(let i=pool.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
+  const chosen=pool.slice(0,4);
+  const correct=Math.floor(rng()*4);
+  const paths=chosen.map((_,i)=>genPath(Math.floor(rng()*99999),5+Math.floor(rng()*3)));
+  const minAlt=200,maxAlt=600,interval=100;
+
   let html='<div class="quiz-card"><div class="card-title">Frage '+(quizRound+1)+' / '+MAX_ROUNDS+'</div>';
-  html+='<div class="quiz-q">Welche Karte gehört zu diesem Satellitenbild?</div>';
-  html+='<canvas id="cSat" style="width:65%;max-width:200px;height:auto;border-radius:8px;margin:0 auto 10px;display:block;"></canvas>';
+  html+='<div class="quiz-q">Welche Höhenlinienkarte passt zu diesem Profil?</div>';
+  html+='<canvas id="cQProf"></canvas>';
   html+='<div class="quiz-grid">';
-  for(let i=0;i<4;i++)html+='<div class="quiz-opt" data-i="'+i+'"><canvas id="cM'+i+'"></canvas><span class="badge"></span></div>';
-  html+='</div><div id="satFb"></div></div>';
-  html+='<div class="scorebar"><div class="stat"><b id="sS">'+quizScore+'</b><small>Richtig</small></div><div class="stat"><b>'+quizRound+'</b><small>von '+MAX_ROUNDS+'</small></div></div>';
+  for(let i=0;i<4;i++)html+='<div class="quiz-opt" data-i="'+i+'"><canvas id="cO'+i+'"></canvas><span class="badge"></span></div>';
+  html+='</div><div id="fb"></div></div>';
+  html+='<div class="scorebar"><div class="stat"><b id="sc">'+quizScore+'</b><small>Richtig</small></div><div class="stat"><b>'+quizRound+'</b><small>von '+MAX_ROUNDS+'</small></div></div>';
   contentEl.innerHTML=html;
-  drawSatellite(document.getElementById('cSat'),hmaps[correct],mapW,mapH,seeds[correct]+99);
-  for(let i=0;i<4;i++)drawMapView(document.getElementById('cM'+i),hmaps[i],mapW,mapH,200,700,50,seeds[i]+99);
+
+  drawProfile(document.getElementById('cQProf'),chosen[correct],minAlt,maxAlt,interval,paths[correct]);
+  for(let i=0;i<4;i++)drawContourMap(document.getElementById('cO'+i),chosen[i],minAlt,maxAlt,interval,paths[i]);
+
   document.querySelectorAll('.quiz-opt').forEach(el=>{
     el.onclick=()=>{
       const pick=parseInt(el.dataset.i);
       document.querySelectorAll('.quiz-opt').forEach(o=>{o.onclick=null;const idx=parseInt(o.dataset.i);if(idx===correct)o.classList.add('correct');else if(idx===pick&&pick!==correct)o.classList.add('incorrect');});
       document.querySelectorAll('.quiz-opt .badge').forEach((b,bi)=>{if(bi===correct)b.textContent='✓';else if(bi===pick&&pick!==correct)b.textContent='✗';});
       if(pick===correct)quizScore++;quizRound++;
-      document.getElementById('sS').textContent=quizScore;
-      document.getElementById('satFb').innerHTML='<p class="result-hint">'+(pick===correct?'✓ Richtig!':'✗ Falsch — die grüne war richtig.')+'</p><button class="btn" id="sNext">'+(quizRound<MAX_ROUNDS?'Nächste →':'Auswertung →')+'</button>';
-      document.getElementById('sNext').onclick=renderSatQuiz;
+      document.getElementById('sc').textContent=quizScore;
+      const fb=document.getElementById('fb');
+      fb.innerHTML='<p class="result-hint">'+(pick===correct?'✓ Richtig!':'✗ Das war leider falsch.')+'</p><button class="btn" id="nx">Weiter →</button>';
+      document.getElementById('nx').onclick=renderQuiz;
     };
   });
 }
 
 /* ━━━━━━ MASSSTAB QUIZ ━━━━━━ */
-const MASSSTAB_QS=[
-  {q:'Maßstab 1:25.000 — wie viel m sind 4 cm auf der Karte?',ans:1000,unit:'m',opts:[500,1000,2500,4000]},
-  {q:'Maßstab 1:50.000 — wie viel km sind 2 cm auf der Karte?',ans:1,unit:'km',opts:[0.5,1,2,5]},
-  {q:'Maßstab 1:100.000 — wie viel km sind 3 cm auf der Karte?',ans:3,unit:'km',opts:[1,3,10,30]},
-  {q:'Maßstab 1:25.000 — wie viel cm auf der Karte sind 500 m?',ans:2,unit:'cm',opts:[0.5,2,5,20]},
-  {q:'Maßstab 1:10.000 — wie viel m sind 5 cm auf der Karte?',ans:500,unit:'m',opts:[50,100,500,5000]},
-  {q:'Maßstab 1:50.000 — wie viel cm auf der Karte sind 2 km?',ans:4,unit:'cm',opts:[1,2,4,10]},
-  {q:'Maßstab 1:250.000 — wie viel km sind 1 cm auf der Karte?',ans:2.5,unit:'km',opts:[0.25,2.5,25,250]},
-  {q:'Maßstab 1:25.000 — wie viel m sind 1 cm auf der Karte?',ans:250,unit:'m',opts:[25,250,2500,25000]},
-  {q:'Eine Strecke ist in Wirklichkeit 3 km. Bei 1:50.000 — wie viel cm auf der Karte?',ans:6,unit:'cm',opts:[3,6,12,60]},
-  {q:'Maßstab 1:20.000 — wie viel m sind 2,5 cm auf der Karte?',ans:500,unit:'m',opts:[200,500,1000,5000]},
+const MSQ=[
+  {q:'Maßstab 1:25.000 — 4 cm auf der Karte sind in echt …',ans:'1000 m',opts:['250 m','1000 m','4000 m','25 km']},
+  {q:'Maßstab 1:50.000 — 2 cm auf der Karte sind in echt …',ans:'1 km',opts:['500 m','1 km','2 km','50 km']},
+  {q:'Maßstab 1:25.000 — 1 cm auf der Karte sind in echt …',ans:'250 m',opts:['25 m','250 m','2,5 km','25 km']},
+  {q:'Maßstab 1:10.000 — 5 cm auf der Karte sind in echt …',ans:'500 m',opts:['50 m','100 m','500 m','5 km']},
+  {q:'Maßstab 1:50.000 — 3 km in echt sind auf der Karte …',ans:'6 cm',opts:['3 cm','6 cm','15 cm','60 cm']},
+  {q:'Maßstab 1:25.000 — 500 m in echt sind auf der Karte …',ans:'2 cm',opts:['0,5 cm','2 cm','5 cm','20 cm']},
+  {q:'Was bedeutet „1:25.000"?',ans:'1 cm = 250 m',opts:['1 cm = 25 m','1 cm = 250 m','1 cm = 2,5 km','1 m = 25 km']},
+  {q:'Welcher Maßstab zeigt mehr Details?',ans:'1:10.000',opts:['1:10.000','1:50.000','1:100.000','1:250.000']},
+  {q:'Maßstab 1:100.000 — 1 cm auf der Karte sind in echt …',ans:'1 km',opts:['100 m','1 km','10 km','100 km']},
+  {q:'Maßstab 1:25.000 — 2 km in echt sind auf der Karte …',ans:'8 cm',opts:['2 cm','4 cm','8 cm','20 cm']},
 ];
+
 function renderMassstab(){
-  if(quizRound>=MAX_ROUNDS){renderDone(renderMassstab);return;}
-  const pool=[...MASSSTAB_QS];for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
+  if(quizRound>=MAX_ROUNDS){renderDone(()=>{quizScore=0;quizRound=0;rngSeed=Date.now()%100000;renderMassstab();});return;}
+  // Shuffle pool
+  const pool=[...MSQ];for(let i=pool.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
   const q=pool[quizRound%pool.length];
-  const opts=[...q.opts];for(let i=opts.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[opts[i],opts[j]]=[opts[j],opts[i]];}
+  const opts=[...q.opts];for(let i=opts.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[opts[i],opts[j]]=[opts[j],opts[i]];}
+
   let html='<div class="quiz-card"><div class="card-title">Frage '+(quizRound+1)+' / '+MAX_ROUNDS+'</div>';
   html+='<div class="quiz-q">'+q.q+'</div>';
-  opts.forEach(o=>{html+='<button class="fopt" data-a="'+o+'">'+o+' '+q.unit+'</button>';});
+  opts.forEach(o=>{html+='<button class="fopt" data-a="'+o+'">'+o+'</button>';});
   html+='<div id="mFb"></div></div>';
-  html+='<div class="scorebar"><div class="stat"><b id="mS">'+quizScore+'</b><small>Richtig</small></div><div class="stat"><b>'+quizRound+'</b><small>von '+MAX_ROUNDS+'</small></div></div>';
-  html+='<div class="info-box"><h3>Maßstab-Tipp:</h3><p><b>1:25.000</b> bedeutet: 1 cm auf der Karte = 25.000 cm = 250 m in Wirklichkeit.</p><p>Formel: <b>Karte × Maßstabszahl = Wirklichkeit</b></p></div>';
+  html+='<div class="scorebar"><div class="stat"><b id="ms">'+quizScore+'</b><small>Richtig</small></div><div class="stat"><b>'+quizRound+'</b><small>von '+MAX_ROUNDS+'</small></div></div>';
+  html+='<div class="info-box"><h3>Tipp:</h3><p><b>1:25.000</b> heißt: 1 cm auf der Karte = 25.000 cm in echt = <b>250 m</b></p><p>Rechne: Karte in cm × Maßstabszahl = Wirklichkeit in cm. Dann in m oder km umrechnen!</p></div>';
   contentEl.innerHTML=html;
+
   contentEl.querySelectorAll('.fopt').forEach(b=>{
     b.onclick=()=>{
-      const pick=parseFloat(b.dataset.a);
-      contentEl.querySelectorAll('.fopt').forEach(x=>{x.disabled=true;if(parseFloat(x.dataset.a)===q.ans)x.classList.add('correct');else if(parseFloat(x.dataset.a)===pick&&pick!==q.ans)x.classList.add('incorrect');});
-      if(pick===q.ans)quizScore++;quizRound++;
-      document.getElementById('mS').textContent=quizScore;
-      document.getElementById('mFb').innerHTML='<p class="result-hint">'+(pick===q.ans?'✓ Richtig!':'✗ Falsch — die Antwort ist <b>'+q.ans+' '+q.unit+'</b>.')+'</p><button class="btn" id="mNext">'+(quizRound<MAX_ROUNDS?'Nächste →':'Auswertung →')+'</button>';
-      document.getElementById('mNext').onclick=renderMassstab;
+      contentEl.querySelectorAll('.fopt').forEach(x=>{x.disabled=true;if(x.dataset.a===q.ans)x.classList.add('correct');else if(x===b&&b.dataset.a!==q.ans)x.classList.add('incorrect');});
+      if(b.dataset.a===q.ans)quizScore++;quizRound++;
+      document.getElementById('ms').textContent=quizScore;
+      document.getElementById('mFb').innerHTML='<p class="result-hint">'+(b.dataset.a===q.ans?'✓ Richtig!':'✗ Richtig wäre: <b>'+q.ans+'</b>')+'</p><button class="btn" id="mn">Weiter →</button>';
+      document.getElementById('mn').onclick=renderMassstab;
     };
   });
 }
 
-/* ━━━━━━ DONE SCREEN ━━━━━━ */
+/* ━━━━━━ DONE ━━━━━━ */
 function renderDone(restartFn){
   const pct=Math.round(quizScore/MAX_ROUNDS*100);
-  contentEl.innerHTML='<div class="quiz-card"><div class="done-box"><div class="done-e">'+(pct>=90?'🏆':pct>=70?'👏':pct>=50?'👍':'📚')+'</div><div class="done-s">'+quizScore+' / '+MAX_ROUNDS+' richtig</div><div class="done-sub">'+pct+'%</div><button class="btn" id="qRe">Nochmal</button></div></div>';
-  document.getElementById('qRe').onclick=()=>{quizScore=0;quizRound=0;restartFn();};
+  contentEl.innerHTML='<div class="quiz-card"><div class="done-box"><div class="done-e">'+(pct>=80?'🏆':pct>=50?'👏':'📚')+'</div><div class="done-s">'+quizScore+' / '+MAX_ROUNDS+' richtig</div><div class="done-sub">'+pct+'%</div><button class="btn" id="re">Nochmal</button></div></div>';
+  document.getElementById('re').onclick=restartFn;
 }
 
 /* ━━━━━━ INIT ━━━━━━ */
