@@ -51,6 +51,23 @@ canvas{display:block;width:100%;height:auto;border-radius:10px;}
 .fopt.correct{background:var(--right);border-color:var(--right);color:#fff;}
 .fopt.incorrect{background:var(--wrong);border-color:var(--wrong);color:#fff;}
 .fopt:disabled{cursor:default;}
+.draw-grid{position:relative;background:#f9f7f1;border:1px solid var(--line);border-radius:10px;overflow:hidden;touch-action:none;}
+.draw-grid canvas{display:block;width:100%;height:auto;}
+.draw-dots{position:absolute;inset:0;pointer-events:none;}
+.draw-dot{position:absolute;width:28px;height:28px;margin:-14px 0 0 -14px;border-radius:50%;border:3px solid var(--amber);background:rgba(255,255,255,.9);pointer-events:auto;cursor:pointer;transition:transform .12s,background .15s;}
+.draw-dot.placed{background:var(--amber);border-color:var(--amber);}
+.draw-dot.active{transform:scale(1.3);border-color:var(--ink);}
+.draw-dot.correct{background:var(--right);border-color:var(--right);}
+.draw-dot.wrong{background:var(--wrong);border-color:var(--wrong);}
+.draw-marker{position:absolute;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;background:var(--amber);pointer-events:none;}
+.draw-label{position:absolute;font-size:10px;font-weight:700;color:var(--amber);pointer-events:none;}
+.draw-hint{font-size:12px;color:var(--ink-soft);text-align:center;margin:8px 0 0;line-height:1.4;}
+.draw-hint b{color:var(--ink);}
+.steep-btn{border:2px solid var(--line);background:var(--paper);color:var(--ink);font-size:13px;font-weight:600;font-family:inherit;padding:10px 14px;border-radius:10px;cursor:pointer;transition:.12s;text-align:center;flex:1;}
+.steep-btn.correct{border-color:var(--right);background:rgba(63,143,91,.1);color:var(--right);}
+.steep-btn.incorrect{border-color:var(--wrong);background:rgba(189,82,57,.1);color:var(--wrong);}
+.steep-btn:disabled{cursor:default;}
+.seg-row{display:flex;gap:6px;margin-top:8px;}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;}}
 </style>
 </head>
@@ -63,8 +80,9 @@ canvas{display:block;width:100%;height:auto;border-radius:10px;}
 </header>
 <div class="mode-bar" role="group">
   <button class="mbtn" id="m0" aria-pressed="true">Lernen</button>
-  <button class="mbtn" id="m1" aria-pressed="false">Profil-Quiz</button>
-  <button class="mbtn" id="m2" aria-pressed="false">Maßstab</button>
+  <button class="mbtn" id="m1" aria-pressed="false">Zeichnen</button>
+  <button class="mbtn" id="m2" aria-pressed="false">Quiz</button>
+  <button class="mbtn" id="m3" aria-pressed="false">Maßstab</button>
 </div>
 <div id="content"></div>
 </div>
@@ -268,12 +286,13 @@ let rngSeed=Date.now()%100000;
 function rng(){rngSeed=(rngSeed*16807)%2147483647;return rngSeed/2147483647;}
 
 /* ━━━━━━ MODE SWITCHING ━━━━━━ */
-[0,1,2].forEach(i=>document.getElementById('m'+i).onclick=()=>setMode(i));
+[0,1,2,3].forEach(i=>document.getElementById('m'+i).onclick=()=>setMode(i));
 function setMode(m){
   mode=m;
-  [0,1,2].forEach(j=>document.getElementById('m'+j).setAttribute('aria-pressed',j===m));
+  [0,1,2,3].forEach(j=>document.getElementById('m'+j).setAttribute('aria-pressed',j===m));
   if(m===0)renderLearn();
-  else if(m===1){quizScore=0;quizRound=0;rngSeed=Date.now()%100000;renderQuiz();}
+  else if(m===1){rngSeed=Date.now()%100000;renderDraw();}
+  else if(m===2){quizScore=0;quizRound=0;rngSeed=Date.now()%100000;renderQuiz();}
   else{quizScore=0;quizRound=0;rngSeed=Date.now()%100000;renderMassstab();}
 }
 
@@ -310,6 +329,236 @@ function renderLearn(){
 
   document.getElementById('prevL').onclick=()=>{learnIdx=(learnIdx-1+LEARN.length)%LEARN.length;renderLearn();};
   document.getElementById('nextL').onclick=()=>{learnIdx=(learnIdx+1)%LEARN.length;renderLearn();};
+}
+
+/* ━━━━━━ DRAW PROFILE MODE ━━━━━━ */
+function renderDraw(){
+  // Pick a random terrain + path
+  const shapes=['peak','ridge','valley','slope','plateau'];
+  const shape=shapes[Math.floor(rng()*shapes.length)];
+  const minAlt=200,maxAlt=600,interval=100;
+  const path=genPath(Math.floor(rng()*99999),6);
+
+  // Sample N points along path for the exercise
+  const N=7;
+  const samples=[];
+  for(let i=0;i<N;i++){
+    const t=i/(N-1);
+    const pathLen=path.length-1;
+    const fi=t*pathLen;const idx=Math.min(pathLen-1,Math.floor(fi));const frac=fi-idx;
+    const px=path[idx].x*(1-frac)+path[idx+1].x*frac;
+    const py=path[idx].y*(1-frac)+path[idx+1].y*frac;
+    const h=getHeight(shape,px,py,minAlt,maxAlt);
+    // Snap to nearest contour level
+    const snapped=Math.round(h/interval)*interval;
+    samples.push({x:px,y:py,alt:Math.max(minAlt,Math.min(maxAlt,snapped)),t});
+  }
+
+  // Build HTML
+  let html='<div class="card"><div class="card-title">Profil zeichnen</div>';
+  html+='<div class="card-desc">Schau dir die Höhenlinien an. Tippe dann im Profil für jeden Punkt die <b>richtige Höhe</b> an!</div>';
+  html+='<canvas id="dMap"></canvas></div>';
+  html+='<div class="card" style="margin-top:8px;padding-bottom:4px;"><div class="card-title">Dein Profil</div>';
+  html+='<div class="draw-grid" id="drawGrid"><canvas id="dProf"></canvas></div>';
+  html+='<div class="draw-hint" id="drawHint">Tippe im Raster auf die richtige Höhe für <b>Punkt 1</b></div>';
+  html+='</div>';
+  html+='<div id="drawResult"></div>';
+  contentEl.innerHTML=html;
+
+  // Draw contour map with numbered dots along path
+  drawContourMap(document.getElementById('dMap'),shape,minAlt,maxAlt,interval,path);
+  // Add numbered markers on the map canvas
+  const mapC=document.getElementById('dMap');
+  const mapCtx=mapC.getContext('2d');
+  samples.forEach((s,i)=>{
+    const cx=s.x*mapC.width,cy=s.y*mapC.height;
+    mapCtx.beginPath();mapCtx.arc(cx,cy,10,0,Math.PI*2);
+    mapCtx.fillStyle='#fff';mapCtx.fill();
+    mapCtx.strokeStyle='var(--amber)';mapCtx.lineWidth=2.5;mapCtx.stroke();
+    mapCtx.font='bold 11px -apple-system,sans-serif';mapCtx.fillStyle='#c2762d';
+    mapCtx.textAlign='center';mapCtx.fillText(i+1,cx,cy+4);
+  });
+
+  // Draw empty profile grid
+  const profC=document.getElementById('dProf');
+  const W=300,H=180;profC.width=W;profC.height=H;
+  const ctx=profC.getContext('2d');
+  const pad={l:38,r:12,t:14,b:28};
+  const pw=W-pad.l-pad.r,ph=H-pad.t-pad.b;
+
+  function drawGrid(){
+    ctx.clearRect(0,0,W,H);ctx.fillStyle='#f9f7f1';ctx.fillRect(0,0,W,H);
+    // Horizontal grid lines
+    const altLevels=[];for(let a=minAlt;a<=maxAlt;a+=interval)altLevels.push(a);
+    ctx.font='10px -apple-system,sans-serif';ctx.textAlign='right';
+    altLevels.forEach(a=>{
+      const y=pad.t+ph*(1-(a-minAlt)/(maxAlt-minAlt));
+      ctx.strokeStyle='#ddd';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+pw,y);ctx.stroke();
+      ctx.fillStyle='#888';ctx.fillText(a+'m',pad.l-4,y+3);
+    });
+    // Vertical lines for each point
+    ctx.strokeStyle='#e8e8e8';ctx.lineWidth=1;
+    samples.forEach((s,i)=>{
+      const x=pad.l+s.t*pw;
+      ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(x,pad.t);ctx.lineTo(x,pad.t+ph);ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle='#aaa';ctx.font='9px -apple-system,sans-serif';ctx.textAlign='center';
+      ctx.fillText(i+1,x,H-10);
+    });
+    // Axes
+    ctx.strokeStyle='#999';ctx.lineWidth=1.2;
+    ctx.beginPath();ctx.moveTo(pad.l,pad.t);ctx.lineTo(pad.l,pad.t+ph);ctx.lineTo(pad.l+pw,pad.t+ph);ctx.stroke();
+    ctx.fillStyle='#c2762d';ctx.font='bold 11px Georgia,serif';ctx.textAlign='center';
+    ctx.fillText('A',pad.l,H-2);ctx.fillText('B',pad.l+pw,H-2);
+  }
+  drawGrid();
+
+  // Interactive state
+  let placed=[];let currentIdx=0;let phase='place'; // 'place', 'steep', 'flat', 'done'
+
+  function altToY(alt){return pad.t+ph*(1-(alt-minAlt)/(maxAlt-minAlt));}
+  function yToAlt(y){const a=minAlt+(1-(y-pad.t)/ph)*(maxAlt-minAlt);return Math.round(a/interval)*interval;}
+
+  function redrawProfile(){
+    drawGrid();
+    // Draw placed points and connecting line
+    if(placed.length>1){
+      ctx.beginPath();ctx.strokeStyle='#5a3e15';ctx.lineWidth=2.5;
+      placed.forEach((p,i)=>{const x=pad.l+samples[i].t*pw,y=altToY(p);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+      ctx.stroke();
+      // Fill below
+      ctx.lineTo(pad.l+samples[placed.length-1].t*pw,pad.t+ph);
+      ctx.lineTo(pad.l+samples[0].t*pw,pad.t+ph);ctx.closePath();
+      ctx.fillStyle='rgba(194,118,45,.08)';ctx.fill();
+    }
+    // Dots
+    placed.forEach((alt,i)=>{
+      const x=pad.l+samples[i].t*pw,y=altToY(alt);
+      ctx.beginPath();ctx.arc(x,y,6,0,Math.PI*2);
+      ctx.fillStyle='#c2762d';ctx.fill();
+      ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+    });
+    // Highlight current
+    if(phase==='place'&&currentIdx<N){
+      const x=pad.l+samples[currentIdx].t*pw;
+      ctx.strokeStyle='rgba(194,118,45,.4)';ctx.lineWidth=1.5;ctx.setLineDash([4,3]);
+      ctx.beginPath();ctx.moveTo(x,pad.t);ctx.lineTo(x,pad.t+ph);ctx.stroke();ctx.setLineDash([]);
+    }
+  }
+
+  // Click handler on profile canvas
+  const grid=document.getElementById('drawGrid');
+  grid.style.cursor='pointer';
+  grid.addEventListener('click',function(e){
+    if(phase!=='place')return;
+    const rect=profC.getBoundingClientRect();
+    const scaleY=H/rect.height;
+    const cy=(e.clientY-rect.top)*scaleY;
+    const alt=yToAlt(cy);
+    const clamped=Math.max(minAlt,Math.min(maxAlt,alt));
+    placed.push(clamped);
+    currentIdx++;
+    redrawProfile();
+    if(currentIdx<N){
+      document.getElementById('drawHint').innerHTML='Tippe die richtige Höhe für <b>Punkt '+(currentIdx+1)+'</b>';
+    }else{
+      finishPlacing();
+    }
+  });
+
+  function finishPlacing(){
+    phase='review';
+    grid.style.cursor='default';
+    // Show correct profile overlaid
+    drawGrid();
+    // Draw user's line
+    ctx.beginPath();ctx.strokeStyle='#c2762d';ctx.lineWidth=2.5;ctx.setLineDash([]);
+    placed.forEach((alt,i)=>{const x=pad.l+samples[i].t*pw,y=altToY(alt);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+    ctx.stroke();
+    // Draw correct line
+    ctx.beginPath();ctx.strokeStyle='var(--right)';ctx.lineWidth=2;ctx.setLineDash([5,3]);
+    samples.forEach((s,i)=>{const x=pad.l+s.t*pw,y=altToY(s.alt);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+    ctx.stroke();ctx.setLineDash([]);
+    // Dots colored by correctness
+    placed.forEach((alt,i)=>{
+      const x=pad.l+samples[i].t*pw,y=altToY(alt);
+      const correct=Math.abs(alt-samples[i].alt)<=interval*.6;
+      ctx.beginPath();ctx.arc(x,y,7,0,Math.PI*2);
+      ctx.fillStyle=correct?'var(--right)':'var(--wrong)';ctx.fill();
+      ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+    });
+    // Score
+    const score=placed.filter((a,i)=>Math.abs(a-samples[i].alt)<=interval*.6).length;
+    let hint='<b>'+score+' / '+N+' Punkte richtig!</b> ';
+    hint+='<span style="color:var(--right)">Grün = dein Profil</span> · <span style="color:var(--right);opacity:.6">gestrichelt = richtige Lösung</span>';
+    document.getElementById('drawHint').innerHTML=hint;
+
+    // Now ask: where is it steepest / flattest?
+    showSteepQuestion();
+  }
+
+  function showSteepQuestion(){
+    // Find steepest and flattest segments
+    let maxSlope=0,maxIdx=0,minSlope=Infinity,minIdx=0;
+    for(let i=0;i<samples.length-1;i++){
+      const dAlt=Math.abs(samples[i+1].alt-samples[i].alt);
+      const dDist=samples[i+1].t-samples[i].t;
+      const slope=dAlt/dDist;
+      if(slope>maxSlope){maxSlope=slope;maxIdx=i;}
+      if(slope<minSlope){minSlope=slope;minIdx=i;}
+    }
+    phase='steep';
+    let html='<div class="card" style="margin-top:8px;"><div class="card-title">Frage</div>';
+    html+='<div class="quiz-q">Zwischen welchen Punkten ist es am <b>steilsten</b>?</div>';
+    html+='<div class="seg-row" id="steepRow">';
+    for(let i=0;i<N-1;i++){
+      html+='<button class="steep-btn" data-i="'+i+'">'+(i+1)+'→'+(i+2)+'</button>';
+    }
+    html+='</div><div id="steepFb" style="margin-top:8px;"></div>';
+    html+='</div>';
+    document.getElementById('drawResult').innerHTML=html;
+
+    document.querySelectorAll('#steepRow .steep-btn').forEach(b=>{
+      b.onclick=()=>{
+        const pick=parseInt(b.dataset.i);
+        document.querySelectorAll('#steepRow .steep-btn').forEach(x=>{
+          x.disabled=true;
+          if(parseInt(x.dataset.i)===maxIdx)x.classList.add('correct');
+          else if(x===b&&pick!==maxIdx)x.classList.add('incorrect');
+        });
+        const ok=pick===maxIdx;
+        document.getElementById('steepFb').innerHTML='<p class="result-hint">'+(ok?'✓ Richtig! Dort liegen die Höhenlinien am engsten.':'✗ Am steilsten ist es zwischen <b>'+(maxIdx+1)+'→'+(maxIdx+2)+'</b>.')+'</p><button class="btn" id="flatBtn">Weiter: Wo ist es am flachsten? →</button>';
+        document.getElementById('flatBtn').onclick=()=>showFlatQuestion(minIdx);
+      };
+    });
+  }
+
+  function showFlatQuestion(correctIdx){
+    phase='flat';
+    let html='<div class="card" style="margin-top:8px;"><div class="card-title">Frage</div>';
+    html+='<div class="quiz-q">Zwischen welchen Punkten ist es am <b>flachsten</b>?</div>';
+    html+='<div class="seg-row" id="flatRow">';
+    for(let i=0;i<N-1;i++){
+      html+='<button class="steep-btn" data-i="'+i+'">'+(i+1)+'→'+(i+2)+'</button>';
+    }
+    html+='</div><div id="flatFb" style="margin-top:8px;"></div>';
+    html+='</div>';
+    document.getElementById('drawResult').innerHTML=html;
+
+    document.querySelectorAll('#flatRow .steep-btn').forEach(b=>{
+      b.onclick=()=>{
+        const pick=parseInt(b.dataset.i);
+        document.querySelectorAll('#flatRow .steep-btn').forEach(x=>{
+          x.disabled=true;
+          if(parseInt(x.dataset.i)===correctIdx)x.classList.add('correct');
+          else if(x===b&&pick!==correctIdx)x.classList.add('incorrect');
+        });
+        const ok=pick===correctIdx;
+        document.getElementById('flatFb').innerHTML='<p class="result-hint">'+(ok?'✓ Richtig! Dort liegen die Linien am weitesten auseinander.':'✗ Am flachsten ist es zwischen <b>'+(correctIdx+1)+'→'+(correctIdx+2)+'</b>.')+'</p><button class="btn" id="newDraw">Neue Aufgabe →</button>';
+        document.getElementById('newDraw').onclick=()=>{rngSeed=Date.now()%100000;renderDraw();};
+      };
+    });
+  }
 }
 
 /* ━━━━━━ PROFILE QUIZ ━━━━━━ */
