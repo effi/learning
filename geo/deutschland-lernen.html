@@ -457,11 +457,20 @@ function render(){
   const effSel=mode===2&&aqCurrent?aqCurrent.key:mode===3?null:selKey;
   const answered=mode===2?aqAns:mode===3?wiAns:mode===1?qAns:{};
 
-  // 1) Seas — always draw as invisible background first (land drawn on top = correct coastline)
-  SEAS.forEach(s=>{
-    const p=se('path',{d:ppath(s.g),class:'sea-bg'});
-    p.style.fill='var(--land)';
-    svgMap.appendChild(p);
+  // 1) Seas — ALWAYS first so land covers them; only real water areas stay visible.
+  //    pointer-events:none on base-land/base-nb lets clicks fall through to seas below.
+  SEAS.forEach((s,i)=>{
+    const ck='seas',key=keyFor(ck,i),a=answered[key];
+    if(effCat===ck){
+      const p=se('path',{d:ppath(s.g),class:'sea-play'+(effSel===key?' sel':'')+(a?' '+a:'')});
+      if(mode===3)p.addEventListener('click',()=>onWiPick(ck,i));
+      else if(mode!==2)p.addEventListener('click',()=>onPick(ck,i,seas[i]));
+      svgMap.appendChild(p);
+    }else{
+      const p=se('path',{d:ppath(s.g),class:'sea-bg'});
+      p.style.fill='var(--land)';
+      svgMap.appendChild(p);
+    }
   });
 
   // 2) Neighbour countries
@@ -479,6 +488,7 @@ function render(){
       else if(mode!==2)p.addEventListener('click',()=>{if(isOn(ck,i))onPick(ck,i,f);});
     }else{
       p.setAttribute('class','region base-nb');
+      // When seas active: full opacity so land covers sea correctly; no dimming
       if((mode===2||mode===3)&&effCat!=='seas')p.style.opacity='.6';
     }
     svgMap.appendChild(p);
@@ -500,21 +510,11 @@ function render(){
     }else{
       p.setAttribute('class','region base-land');
       p.style.fill=SC[i%16];
+      // When seas active: full opacity so land covers sea correctly; no dimming
       if((mode===2||mode===3)&&effCat!=='seas')p.style.opacity='.55';
     }
     svgMap.appendChild(p);
   });
-
-  // 3b) Seas — drawn AFTER land so they only show in real water areas
-  if(effCat==='seas'){
-    SEAS.forEach((s,i)=>{
-      const ck='seas',key=keyFor(ck,i),a=answered[key];
-      const p=se('path',{d:ppath(s.g),class:'sea-play'+(effSel===key?' sel':'')+(a?' '+a:'')});
-      if(mode===3)p.addEventListener('click',()=>onWiPick(ck,i));
-      else if(mode!==2)p.addEventListener('click',()=>onPick(ck,i,seas[i]));
-      svgMap.appendChild(p);
-    });
-  }
 
   // 4) Mountains
   const showMtn=effCat==='mountains'||mode===2||mode===3;
