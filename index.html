@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#e9ece4">
+<title>Lern-Apps</title>
+<style>
+:root{--paper:#e9ece4;--paper-2:#f3f5ef;--ink:#26302e;--ink-soft:#5d6764;--line:#c4ccc1;--amber:#c2762d;--shadow:0 2px 12px rgba(38,48,46,.10);}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;}
+body{background:var(--paper);color:var(--ink);font-family:-apple-system,system-ui,"Segoe UI",sans-serif;line-height:1.4;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);min-height:100vh;display:flex;align-items:center;justify-content:center;}
+.wrap{max-width:420px;margin:0 auto;padding:24px 16px;}
+.eyebrow{font-size:10px;letter-spacing:.32em;text-transform:uppercase;color:var(--amber);font-weight:700;margin:0 0 2px;}
+h1{font-family:Georgia,serif;font-weight:600;font-size:28px;line-height:1.1;margin:0 0 4px;}
+.lede{color:var(--ink-soft);font-size:13px;margin:0 0 20px;}
+.apps{display:flex;flex-direction:column;gap:12px;}
+.app-link{display:block;text-decoration:none;color:var(--ink);background:var(--paper-2);border:1px solid var(--line);border-radius:16px;padding:18px 20px;box-shadow:var(--shadow);transition:.12s;}
+.app-link:active{transform:scale(.98);}
+.app-icon{font-size:28px;margin-bottom:6px;}
+.app-title{font-family:Georgia,serif;font-size:18px;font-weight:600;margin:0 0 3px;}
+.app-desc{font-size:12px;color:var(--ink-soft);margin:0;line-height:1.4;}
+.footer{margin-top:24px;font-size:10px;color:var(--ink-soft);text-align:center;}
+</style>
+</head>
+<body>
+<div class="wrap">
+<p class="eyebrow">Atlas · Lernen</p>
+<h1>Lern-Apps</h1>
+<p class="lede">Erdkunde interaktiv lernen, komplett offline.</p>
+<div class="apps">
+  <a class="app-link" href="geo/deutschland-lernen-v8.html">
+    <div class="app-icon">🗺️</div>
+    <p class="app-title">Deutschland lernen</p>
+    <p class="app-desc">Bundesländer, Städte, Flüsse, Gebirge, Nachbarländer — auf einer interaktiven Karte.</p>
+  </a>
+  <a class="app-link" href="geo/hoehenlinien-v1.html">
+    <div class="app-icon">⛰️</div>
+    <p class="app-title">Höhenlinien & Karten</p>
+    <p class="app-desc">Höhenlinien lesen, Profile zuordnen und Satellitenbilder mit Karten vergleichen.</p>
+  </a>
+</div>
+<p class="footer">Funktioniert offline im Browser.</p>
+</div>
+</body>
+</html>
