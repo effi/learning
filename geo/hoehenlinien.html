@@ -101,6 +101,7 @@ const SHAPES={
   valley:{fn:terrain_valley,name:'Tal',desc:'Ein Tal zwischen zwei Hängen. Unten in der Mitte ist es am tiefsten.'},
   slope:{fn:terrain_slope,name:'Hang',desc:'Ein gleichmäßiger Hang. Links unten, rechts oben — alle Linien gleich weit.'},
   plateau:{fn:terrain_plateau,name:'Hochebene',desc:'Oben flach (Linien weit), an den Seiten steil (Linien eng).'},
+  saddle:{fn:terrain_saddle,name:'Sattel',desc:'Zwei Kuppen mit einer Einsenkung dazwischen.'},
 };
 const SHAPE_KEYS=Object.keys(SHAPES);
 
@@ -144,7 +145,7 @@ function drawContourMap(canvas,shape,minAlt,maxAlt,interval,path,opts){
   const sx=W/gw,sy=H/gh;
 
   levels.forEach(alt=>{
-    const isMajor=(alt%200===0);
+    const isMajor=(alt%100===0);
     ctx.strokeStyle=isMajor?'#6b4e20':'#9a7a48';
     ctx.lineWidth=isMajor?2.5:1.5;
     ctx.beginPath();
@@ -333,10 +334,10 @@ function renderLearn(){
 
 /* ━━━━━━ DRAW PROFILE MODE ━━━━━━ */
 function renderDraw(){
-  // Pick a random terrain + path
-  const shapes=['peak','ridge','valley','slope','plateau'];
+  // Prefer terrains with closed contours for better exercises
+  const shapes=['peak','peak','plateau','saddle','peak','plateau'];
   const shape=shapes[Math.floor(rng()*shapes.length)];
-  const minAlt=200,maxAlt=600,interval=100;
+  const minAlt=200,maxAlt=600,interval=50;
   const path=genPath(Math.floor(rng()*99999),6);
 
   // Sample N points along path for the exercise
@@ -349,7 +350,7 @@ function renderDraw(){
     const px=path[idx].x*(1-frac)+path[idx+1].x*frac;
     const py=path[idx].y*(1-frac)+path[idx+1].y*frac;
     const h=getHeight(shape,px,py,minAlt,maxAlt);
-    // Snap to nearest contour level
+    // Snap to nearest 50m
     const snapped=Math.round(h/interval)*interval;
     samples.push({x:px,y:py,alt:Math.max(minAlt,Math.min(maxAlt,snapped)),t});
   }
@@ -360,7 +361,7 @@ function renderDraw(){
   html+='<canvas id="dMap"></canvas></div>';
   html+='<div class="card" style="margin-top:8px;padding-bottom:4px;"><div class="card-title">Dein Profil</div>';
   html+='<div class="draw-grid" id="drawGrid"><canvas id="dProf"></canvas></div>';
-  html+='<div class="draw-hint" id="drawHint">Tippe im Raster auf die richtige Höhe für <b>Punkt 1</b></div>';
+  html+='<div style="display:flex;align-items:center;gap:8px;margin-top:6px;"><div class="draw-hint" id="drawHint" style="flex:1;margin:0;">Tippe die richtige Höhe für <b>Punkt 1</b></div><button class="btn" id="undoBtn" style="width:auto;margin:0;padding:8px 14px;font-size:12px;opacity:.5;" disabled>← Zurück</button></div>';
   html+='</div>';
   html+='<div id="drawResult"></div>';
   contentEl.innerHTML=html;
@@ -388,14 +389,16 @@ function renderDraw(){
 
   function drawGrid(){
     ctx.clearRect(0,0,W,H);ctx.fillStyle='#f9f7f1';ctx.fillRect(0,0,W,H);
-    // Horizontal grid lines
+    // Horizontal grid lines every 50m
     const altLevels=[];for(let a=minAlt;a<=maxAlt;a+=interval)altLevels.push(a);
     ctx.font='10px -apple-system,sans-serif';ctx.textAlign='right';
     altLevels.forEach(a=>{
       const y=pad.t+ph*(1-(a-minAlt)/(maxAlt-minAlt));
-      ctx.strokeStyle='#ddd';ctx.lineWidth=1;
+      const major=(a%100===0);
+      ctx.strokeStyle=major?'#ccc':'#e8e8e8';ctx.lineWidth=major?1.2:0.7;
       ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+pw,y);ctx.stroke();
-      ctx.fillStyle='#888';ctx.fillText(a+'m',pad.l-4,y+3);
+      ctx.fillStyle=major?'#777':'#aaa';
+      ctx.fillText(a+'m',pad.l-4,y+3);
     });
     // Vertical lines for each point
     ctx.strokeStyle='#e8e8e8';ctx.lineWidth=1;
@@ -449,6 +452,15 @@ function renderDraw(){
   // Click handler on profile canvas
   const grid=document.getElementById('drawGrid');
   grid.style.cursor='pointer';
+  const undoBtn=document.getElementById('undoBtn');
+  undoBtn.onclick=function(){
+    if(phase!=='place'||placed.length===0)return;
+    placed.pop();currentIdx--;
+    redrawProfile();
+    document.getElementById('drawHint').innerHTML='Tippe die richtige Höhe für <b>Punkt '+(currentIdx+1)+'</b>';
+    undoBtn.disabled=placed.length===0;undoBtn.style.opacity=placed.length===0?'.5':'1';
+  };
+
   grid.addEventListener('click',function(e){
     if(phase!=='place')return;
     const rect=profC.getBoundingClientRect();
@@ -458,10 +470,12 @@ function renderDraw(){
     const clamped=Math.max(minAlt,Math.min(maxAlt,alt));
     placed.push(clamped);
     currentIdx++;
+    undoBtn.disabled=false;undoBtn.style.opacity='1';
     redrawProfile();
     if(currentIdx<N){
       document.getElementById('drawHint').innerHTML='Tippe die richtige Höhe für <b>Punkt '+(currentIdx+1)+'</b>';
     }else{
+      undoBtn.disabled=true;undoBtn.style.opacity='.5';
       finishPlacing();
     }
   });
