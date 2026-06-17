@@ -714,14 +714,15 @@ function findGraphRoute(mapData,startIdx,endIdx){
 }
 
 function pickRouteEndpoints(mapData){
+  const minLen=advanced?4:3,maxLen=advanced?8:6;
   let best=null,bestLen=0,attempts=0;
-  while(attempts<30){
+  while(attempts<40){
     attempts++;
     const a=Math.floor(rng()*mapData.nodes.length);
     const b=Math.floor(rng()*mapData.nodes.length);
     if(a===b)continue;
     const route=findGraphRoute(mapData,a,b);
-    if(route&&route.length>=3&&route.length<=6){
+    if(route&&route.length>=minLen&&route.length<=maxLen){
       if(route.length>bestLen){bestLen=route.length;best=route;}
     }
   }
@@ -865,10 +866,13 @@ function renderWegNormal(mapData,route){
 }
 
 function renderWegAdvanced(mapData,route){
+  // Advanced: show route on map, then two-step MC at each decision point
+  // Step 1: direction (links/rechts/geradeaus)
+  // Step 2: how far (bis zur Kreuzung / bis zum Park / die Straße entlang bis...)
   let html='<div class="quiz-card"><div class="card-title">Frage '+(quizRound+1)+' / '+MAX_ROUNDS+'</div>';
-  html+='<div class="quiz-q">Tippe die Kreuzungen an, um den Weg von <b>A</b> nach <b>B</b> zu finden!</div>';
-  html+='<canvas id="cWegA" style="cursor:pointer;"></canvas>';
-  html+='<p id="wegHint" style="font-size:12px;color:var(--ink-soft);text-align:center;margin:6px 0;">Tippe auf Kreuzungen, um deinen Weg zu zeichnen.</p>';
+  html+='<div class="quiz-q">Beschreibe den eingezeichneten Weg Schritt für Schritt!</div>';
+  html+='<canvas id="cWegA"></canvas>';
+  html+='<p id="wegHint" style="font-size:12px;color:var(--ink-soft);text-align:center;margin:6px 0;"></p>';
   html+='<div id="wegSteps"></div></div>';
   html+='<div class="scorebar"><div class="stat"><b id="sc">'+quizScore+'</b><small>Richtig</small></div><div class="stat"><b>'+quizRound+'</b><small>von '+MAX_ROUNDS+'</small></div></div>';
   contentEl.innerHTML=html;
@@ -878,140 +882,184 @@ function renderWegAdvanced(mapData,route){
   const pad=18,iw=W-pad*2,ih=H-pad*2;
   function nx(x){return pad+x*iw;}
   function ny(y){return pad+y*ih;}
-  const startIdx=route[0],endIdx=route[route.length-1];
 
-  drawGraphStreetMap(canvas,mapData,null,false);
-  const ctx=canvas.getContext('2d');
-  const sn=mapData.nodes[startIdx],en=mapData.nodes[endIdx];
-  ctx.font='bold 13px Georgia,serif';ctx.fillStyle='#c2762d';ctx.textAlign='center';
-  ctx.fillText('A',nx(sn.x),ny(sn.y)-13);
-  ctx.fillText('B',nx(en.x),ny(en.y)-13);
-  ctx.fillStyle='#c2762d';
-  ctx.beginPath();ctx.arc(nx(sn.x),ny(sn.y),5,0,Math.PI*2);ctx.fill();
-  ctx.beginPath();ctx.arc(nx(en.x),ny(en.y),5,0,Math.PI*2);ctx.fill();
+  // Draw the map with route shown
+  drawGraphStreetMap(canvas,mapData,route,true);
 
-  let userRoute=[startIdx];
-  let phase='route';
+  const allStreets=[...new Set(mapData.edges.map(e=>e[2]))];
+  const stepsDiv=document.getElementById('wegSteps');
+  let stepIdx=1,stepScore=0,totalSteps=0;
 
-  function redrawAdvRoute(){
-    drawGraphStreetMap(canvas,mapData,null,false);
-    const ctx2=canvas.getContext('2d');
-    ctx2.font='bold 13px Georgia,serif';ctx2.fillStyle='#c2762d';ctx2.textAlign='center';
-    ctx2.fillText('A',nx(sn.x),ny(sn.y)-13);
-    ctx2.fillText('B',nx(en.x),ny(en.y)-13);
-    ctx2.fillStyle='#c2762d';
-    ctx2.beginPath();ctx2.arc(nx(sn.x),ny(sn.y),5,0,Math.PI*2);ctx2.fill();
-    ctx2.beginPath();ctx2.arc(nx(en.x),ny(en.y),5,0,Math.PI*2);ctx2.fill();
-    if(userRoute.length>1){
-      ctx2.setLineDash([6,4]);ctx2.strokeStyle='#c2762d';ctx2.lineWidth=3;ctx2.lineCap='round';
-      ctx2.beginPath();
-      userRoute.forEach((ni,i)=>{
-        const n=mapData.nodes[ni];
-        i===0?ctx2.moveTo(nx(n.x),ny(n.y)):ctx2.lineTo(nx(n.x),ny(n.y));
-      });
-      ctx2.stroke();ctx2.setLineDash([]);
+  // Build decision points: each step in the route is a decision
+  // except consecutive edges on same street that can be merged into "folge der Straße bis..."
+  const decisions=[];
+  for(let i=0;i<route.length-1;i++){
+    const fromIdx=route[i],toIdx=route[i+1];
+    const street=getEdgeStreet(mapData,fromIdx,toIdx);
+    const destNode=mapData.nodes[toIdx];
+    const isLastEdge=(i===route.length-2);
+
+    // Determine if next edge continues on same street (merge into "follow until")
+    let continuesOnSame=false;
+    if(!isLastEdge){
+      const nextStreet=getEdgeStreet(mapData,route[i+1],route[i+2]);
+      if(nextStreet===street)continuesOnSame=true;
     }
-    userRoute.forEach(ni=>{
-      const n=mapData.nodes[ni];
-      ctx2.beginPath();ctx2.arc(nx(n.x),ny(n.y),4,0,Math.PI*2);
-      ctx2.fillStyle='#c2762d';ctx2.fill();
-    });
+
+    if(i===0){
+      // First step: always a decision point
+      decisions.push({fromIdx,toIdx,street,type:'start',mergeUntil:null});
+    } else {
+      const prevIdx=route[i-1];
+      const dir=getTurnDirection(mapData,prevIdx,fromIdx,toIdx);
+      // Check if this is a turn (new decision) or continuation
+      const prevStreet=getEdgeStreet(mapData,route[i-1],route[i]);
+      if(street!==prevStreet||dir!=='geradeaus'){
+        // New direction = decision point
+        // Figure out what's at the destination for the "how far" question
+        let target=null;
+        if(destNode.lm) target=destNode.lm;
+        else if(isLastEdge) target='Ziel B';
+        else{
+          const nb=getNodeNeighbors(mapData,toIdx);
+          target=nb.length>=3?'nächste Kreuzung':'Ende der Straße';
+        }
+        decisions.push({fromIdx,toIdx,street,type:'turn',dir,target,prevIdx});
+      }
+      // If not a new decision, it's part of a "follow street" merged section
+    }
+  }
+  totalSteps=decisions.length;
+  document.getElementById('wegHint').innerHTML='Beschreibe <b>'+totalSteps+' Schritte</b> des Weges:';
+
+  function showDecision(){
+    if(stepIdx>decisions.length){
+      const pct=Math.round(stepScore/totalSteps*100);
+      stepsDiv.innerHTML='<p class="result-hint" style="margin-top:10px;"><b>'+stepScore+'/'+totalSteps+' richtig!</b></p><button class="btn" id="waNx">Weiter →</button>';
+      if(pct>=50)quizScore++;
+      quizRound++;
+      document.getElementById('sc').textContent=quizScore;
+      document.getElementById('waNx').onclick=renderWeg;
+      return;
+    }
+    const d=decisions[stepIdx-1];
+
+    // Highlight current position on map
+    drawGraphStreetMap(canvas,mapData,route,true);
+    const ctx3=canvas.getContext('2d');
+    const fn=mapData.nodes[d.fromIdx];
+    ctx3.strokeStyle='#c2762d';ctx3.lineWidth=3;
+    ctx3.beginPath();ctx3.arc(nx(fn.x),ny(fn.y),12,0,Math.PI*2);ctx3.stroke();
+
+    if(d.type==='start'){
+      showStartStep(d);
+    } else {
+      showTurnStep(d);
+    }
   }
 
-  canvas.onclick=function(e){
-    if(phase!=='route')return;
-    const rect=canvas.getBoundingClientRect();
-    const sx=W/rect.width,sy=H/rect.height;
-    const mx=(e.clientX-rect.left)*sx,my=(e.clientY-rect.top)*sy;
-    let bestIdx=-1,bestD=Infinity;
-    mapData.nodes.forEach((n,i)=>{
-      const d=(mx-nx(n.x))**2+(my-ny(n.y))**2;
-      if(d<bestD){bestD=d;bestIdx=i;}
-    });
-    if(bestIdx<0||bestD>25*25)return;
-    const lastIdx=userRoute[userRoute.length-1];
-    // Must be connected by an edge
-    const nb=getNodeNeighbors(mapData,lastIdx);
-    if(!nb.some(n=>n.to===bestIdx))return;
-    if(userRoute.includes(bestIdx))return;
-    userRoute.push(bestIdx);
-    redrawAdvRoute();
-    if(bestIdx===endIdx){
-      phase='describe';
-      document.getElementById('wegHint').innerHTML='<b>Weg gefunden!</b> Beschreibe jetzt jeden Schritt:';
-      startGraphDescPhase(mapData,userRoute,canvas,nx,ny);
-    }
-  };
+  function showStartStep(d){
+    // Step 1 only: which street to start on
+    const correctOpt='Gehe die '+d.street+' entlang';
+    const otherStreets=allStreets.filter(s=>s!==d.street);
+    shuffle(otherStreets);
+    const wrongOpts=[
+      'Gehe die '+(otherStreets[0]||'Weg')+' entlang',
+      'Gehe die '+(otherStreets[1]||otherStreets[0]||'Pfad')+' entlang'
+    ];
+    const opts=shuffle([correctOpt,...wrongOpts]);
 
-  function startGraphDescPhase(mapData,uRoute,canvas,nx,ny){
-    canvas.style.cursor='default';
-    let stepIdx=1,stepScore=0;
-    const stepsDiv=document.getElementById('wegSteps');
-    const allStreets=[...new Set(mapData.edges.map(e=>e[2]))];
+    let h='<div style="margin-top:8px;"><p style="font-size:12px;font-weight:600;margin:0 0 6px;">Schritt '+stepIdx+'/'+totalSteps+': Von A aus — wohin?</p>';
+    h+='<div style="display:flex;flex-direction:column;gap:6px;">';
+    opts.forEach(o=>{h+='<button class="cross-btn" data-a="'+o+'">'+o+'</button>';});
+    h+='</div></div>';
+    stepsDiv.innerHTML=h;
 
-    function showStep(){
-      if(stepIdx>=uRoute.length){
-        const pct=Math.round(stepScore/(uRoute.length-1)*100);
-        stepsDiv.innerHTML='<p class="result-hint" style="margin-top:10px;"><b>'+stepScore+'/'+(uRoute.length-1)+' Schritte richtig!</b></p><button class="btn" id="waNx">Weiter →</button>';
-        if(pct>=50)quizScore++;
-        quizRound++;
-        document.getElementById('sc').textContent=quizScore;
-        document.getElementById('waNx').onclick=renderWeg;
-        return;
-      }
-      const fromIdx=uRoute[stepIdx-1],toIdx=uRoute[stepIdx];
-      const street=getEdgeStreet(mapData,fromIdx,toIdx);
-      let correctOpt;
-      if(stepIdx===1){
-        correctOpt='Gehe die '+street+' entlang';
-      } else {
-        const prevIdx=uRoute[stepIdx-2];
-        const dir=getTurnDirection(mapData,prevIdx,fromIdx,toIdx);
-        correctOpt=dir==='geradeaus'?'Geradeaus auf der '+street:dir.charAt(0).toUpperCase()+dir.slice(1)+' in die '+street;
-      }
-      const wrongOpts=[];
-      const otherStreets=allStreets.filter(s=>s!==street);
-      shuffle(otherStreets);
-      if(stepIdx===1){
-        wrongOpts.push('Gehe die '+(otherStreets[0]||'Straße')+' entlang');
-        wrongOpts.push('Gehe die '+(otherStreets[1]||otherStreets[0]||'Weg')+' entlang');
-      } else {
-        const dirs=['Links abbiegen','Rechts abbiegen','Geradeaus'];
-        dirs.forEach(d=>{
-          const s=otherStreets[wrongOpts.length%otherStreets.length]||'Straße';
-          const opt=d==='Geradeaus'?'Geradeaus auf der '+s:d+' in die '+s;
-          if(opt!==correctOpt)wrongOpts.push(opt);
+    stepsDiv.querySelectorAll('.cross-btn').forEach(b=>{
+      b.onclick=()=>{
+        stepsDiv.querySelectorAll('.cross-btn').forEach(x=>{
+          x.disabled=true;
+          if(x.dataset.a===correctOpt)x.classList.add('correct');
+          else if(x===b&&b.dataset.a!==correctOpt)x.classList.add('incorrect');
         });
-      }
-      const opts=shuffle([correctOpt,...wrongOpts.slice(0,2)]);
-
-      let h='<div style="margin-top:8px;"><p style="font-size:12px;font-weight:600;margin:0 0 6px;">Schritt '+stepIdx+': Was machst du hier?</p>';
-      h+='<div style="display:flex;gap:6px;flex-wrap:wrap;">';
-      opts.forEach(o=>{h+='<button class="cross-btn" data-a="'+o+'">'+o+'</button>';});
-      h+='</div></div>';
-      stepsDiv.innerHTML=h;
-
-      redrawAdvRoute();
-      const ctx3=canvas.getContext('2d');
-      const fn=mapData.nodes[fromIdx];
-      ctx3.strokeStyle='#c2762d';ctx3.lineWidth=3;
-      ctx3.beginPath();ctx3.arc(nx(fn.x),ny(fn.y),10,0,Math.PI*2);ctx3.stroke();
-
-      stepsDiv.querySelectorAll('.cross-btn').forEach(b=>{
-        b.onclick=()=>{
-          stepsDiv.querySelectorAll('.cross-btn').forEach(x=>{
-            x.disabled=true;
-            if(x.dataset.a===correctOpt)x.classList.add('correct');
-            else if(x===b&&b.dataset.a!==correctOpt)x.classList.add('incorrect');
-          });
-          if(b.dataset.a===correctOpt)stepScore++;
-          stepIdx++;
-          setTimeout(showStep,800);
-        };
-      });
-    }
-    showStep();
+        if(b.dataset.a===correctOpt)stepScore++;
+        stepIdx++;
+        setTimeout(showDecision,900);
+      };
+    });
   }
+
+  function showTurnStep(d){
+    // Two-phase: first direction, then "how far"
+    const dirCorrect=d.dir==='geradeaus'?'Geradeaus':d.dir.charAt(0).toUpperCase()+d.dir.slice(1);
+    const dirOpts=shuffle(['Links abbiegen','Rechts abbiegen','Geradeaus'].filter(x=>x!==dirCorrect).slice(0,2).concat([dirCorrect]));
+
+    let h='<div style="margin-top:8px;"><p style="font-size:12px;font-weight:600;margin:0 0 6px;">Schritt '+stepIdx+'/'+totalSteps+': Welche Richtung?</p>';
+    h+='<div style="display:flex;gap:6px;">';
+    dirOpts.forEach(o=>{h+='<button class="cross-btn" data-a="'+o+'" style="flex:1;">'+o+'</button>';});
+    h+='</div></div>';
+    stepsDiv.innerHTML=h;
+
+    stepsDiv.querySelectorAll('.cross-btn').forEach(b=>{
+      b.onclick=()=>{
+        const dirOk=(b.dataset.a===dirCorrect);
+        stepsDiv.querySelectorAll('.cross-btn').forEach(x=>{
+          x.disabled=true;
+          if(x.dataset.a===dirCorrect)x.classList.add('correct');
+          else if(x===b&&!dirOk)x.classList.add('incorrect');
+        });
+        if(dirOk)stepScore+=0.5;
+        // Phase 2: which street / how far
+        setTimeout(()=>showHowFar(d),700);
+      };
+    });
+  }
+
+  function showHowFar(d){
+    const correctStreet='In die '+d.street;
+    const destNode=mapData.nodes[d.toIdx];
+    let howFar='bis zur nächsten Kreuzung';
+    if(destNode.lm) howFar='bis zum '+destNode.lm;
+    else if(d.toIdx===route[route.length-1]) howFar='bis zum Ziel';
+    else{
+      const nb=getNodeNeighbors(mapData,d.toIdx);
+      howFar=nb.length>=3?'bis zur nächsten Kreuzung':'bis zum Ende der Straße';
+    }
+    const correctOpt=correctStreet+', '+howFar;
+
+    // Wrong options: wrong street or wrong destination
+    const otherStreets=allStreets.filter(s=>s!==d.street);
+    shuffle(otherStreets);
+    const wrongTargets=['bis zum Park','bis zur Ampel','bis zur nächsten Kreuzung','bis zum Brunnen','bis zur Kirche'].filter(t=>t!==howFar);
+    shuffle(wrongTargets);
+    const wrongOpts=[
+      'In die '+(otherStreets[0]||'Straße')+', '+(wrongTargets[0]||howFar),
+      correctStreet+', '+(wrongTargets[1]||wrongTargets[0]||'bis zum Ende'),
+    ];
+
+    const opts=shuffle([correctOpt,...wrongOpts]);
+    let h='<div style="margin-top:8px;"><p style="font-size:12px;font-weight:600;margin:0 0 6px;">Wohin und wie weit?</p>';
+    h+='<div style="display:flex;flex-direction:column;gap:6px;">';
+    opts.forEach(o=>{h+='<button class="cross-btn" data-a="'+o+'">'+o+'</button>';});
+    h+='</div></div>';
+    stepsDiv.innerHTML=h;
+
+    stepsDiv.querySelectorAll('.cross-btn').forEach(b=>{
+      b.onclick=()=>{
+        const ok=(b.dataset.a===correctOpt);
+        stepsDiv.querySelectorAll('.cross-btn').forEach(x=>{
+          x.disabled=true;
+          if(x.dataset.a===correctOpt)x.classList.add('correct');
+          else if(x===b&&!ok)x.classList.add('incorrect');
+        });
+        if(ok)stepScore+=0.5;
+        stepIdx++;
+        setTimeout(showDecision,900);
+      };
+    });
+  }
+
+  showDecision();
 }
 
 /* ━━━━━━ LUFTBILD QUIZ ━━━━━━ */
