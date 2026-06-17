@@ -316,26 +316,25 @@ function generateCity(seed){
   let s=seed;const lr=()=>{s=(s*16807)%2147483647;return s/2147483647;};
   const size=advanced?5:4;
   const letters='ABCDEFGH'.slice(0,size);
-  const lmPool=shuffle([...LANDMARKS_POOL]).slice(0,advanced?7:5);
+  const count=advanced?10:8;
+  const lmPool=shuffle([...LANDMARKS_POOL]).slice(0,count);
   const placed=[];
-  const usedCells=new Set();
+  // Allow multiple landmarks per cell — spread them but don't enforce uniqueness
   lmPool.forEach(lm=>{
-    let r,c,key;
-    do{r=Math.floor(lr()*size);c=Math.floor(lr()*size);key=r+','+c;}while(usedCells.has(key));
-    usedCells.add(key);
+    const r=Math.floor(lr()*size),c=Math.floor(lr()*size);
     placed.push({...lm,row:r,col:c});
   });
 
-  // Assign block types to empty cells
+  // Assign block types to cells (based on dominant landmark or random)
   const cells=[];
   const blockTypes=['rosa','rosa','rosa','gruen','grau','rosa'];
   for(let r=0;r<size;r++)for(let c=0;c<size;c++){
-    const lm=placed.find(l=>l.row===r&&l.col===c);
-    if(lm){
-      cells.push({row:r,col:c,colorId:lm.colorId,landmark:lm});
+    const lms=placed.filter(l=>l.row===r&&l.col===c);
+    if(lms.length>0){
+      cells.push({row:r,col:c,colorId:lms[0].colorId,landmarks:lms});
     }else{
       const bt=blockTypes[Math.floor(lr()*blockTypes.length)];
-      cells.push({row:r,col:c,colorId:bt,landmark:null});
+      cells.push({row:r,col:c,colorId:bt,landmarks:[]});
     }
   }
   return {size,letters,placed,cells};
@@ -396,15 +395,27 @@ function drawPlanquadratMap(canvas,city,highlight){
   for(let r=0;r<size;r++)ctx.fillText(city.letters[r],pad/2,pad+r*ch+ch/2);
   for(let c=0;c<size;c++)ctx.fillText(''+(c+1),pad+c*cw+cw/2,pad/2);
 
-  // Landmark labels
-  ctx.font='bold 11px -apple-system,sans-serif';
-  city.placed.forEach(lm=>{
-    const x=pad+lm.col*cw+cw/2,y=pad+lm.row*ch+ch/2;
-    ctx.fillStyle='rgba(255,255,255,.85)';
-    ctx.beginPath();ctx.arc(x,y,12,0,Math.PI*2);ctx.fill();
-    ctx.strokeStyle='#333';ctx.lineWidth=1.5;ctx.stroke();
-    ctx.fillStyle='#333';ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.fillText(lm.abbr,x,y);
+  // Landmark labels — position multiple per cell without overlap
+  ctx.font='bold 10px -apple-system,sans-serif';
+  city.cells.forEach(cell=>{
+    const lms=cell.landmarks;
+    if(!lms||lms.length===0)return;
+    const cx=pad+cell.col*cw,cy=pad+cell.row*ch;
+    // Offset positions within cell for 1, 2, or 3+ landmarks
+    const positions=lms.length===1?
+      [{dx:cw/2,dy:ch/2}]:
+      lms.length===2?
+      [{dx:cw*0.33,dy:ch*0.4},{dx:cw*0.67,dy:ch*0.65}]:
+      lms.map((_,i)=>({dx:cw*(0.25+0.25*(i%2)),dy:ch*(0.25+0.25*Math.floor(i/2))}));
+    lms.forEach((lm,i)=>{
+      const pos=positions[Math.min(i,positions.length-1)];
+      const x=cx+pos.dx,y=cy+pos.dy;
+      ctx.fillStyle='rgba(255,255,255,.9)';
+      ctx.beginPath();ctx.arc(x,y,11,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle='#333';ctx.lineWidth=1.5;ctx.stroke();
+      ctx.fillStyle='#333';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(lm.abbr,x,y);
+    });
   });
 }
 
@@ -412,17 +423,17 @@ function renderPlanquadrat(){
   if(quizRound>=MAX_ROUNDS){renderDone(()=>{resetQuiz();renderPlanquadrat();});return;}
 
   const city=generateCity(rngSeed+quizRound*777);
-  const isTypeA=(quizRound%2===0);
+  // Three question types: A=where is X, B=what is in cell, C=what is NOT in cell
+  const qType=quizRound%3;
 
   let html='<div class="quiz-card"><div class="card-title">Frage '+(quizRound+1)+' / '+MAX_ROUNDS+'</div>';
 
-  if(isTypeA){
-    // Ask: where is this landmark?
+  if(qType===0){
+    // Type A: "In welchem Planquadrat liegt X?"
     const target=city.placed[Math.floor(rng()*city.placed.length)];
     const correctRef=city.letters[target.row]+(target.col+1);
     html+='<div class="quiz-q">In welchem Planquadrat liegt <b>'+target.name+'</b> ('+target.abbr+')?</div>';
     html+='<canvas id="cPQ"></canvas>';
-    // Generate options
     const allRefs=[];
     for(let r=0;r<city.size;r++)for(let c=0;c<city.size;c++)allRefs.push(city.letters[r]+(c+1));
     const wrong=allRefs.filter(r=>r!==correctRef);
@@ -444,22 +455,27 @@ function renderPlanquadrat(){
         document.getElementById('pqNx').onclick=renderPlanquadrat;
       };
     });
-  } else {
-    // Ask: what is in this cell?
-    const target=city.placed[Math.floor(rng()*city.placed.length)];
-    const ref=city.letters[target.row]+(target.col+1);
+  } else if(qType===1){
+    // Type B: "Was liegt (auch) in Planquadrat X?" — pick a cell with landmarks
+    const cellsWithLm=city.cells.filter(c=>c.landmarks.length>0);
+    const cell=cellsWithLm[Math.floor(rng()*cellsWithLm.length)];
+    const ref=city.letters[cell.row]+(cell.col+1);
+    const target=cell.landmarks[Math.floor(rng()*cell.landmarks.length)];
     const correctName=target.name;
+    // Distractors: things NOT in this cell
+    const inCell=cell.landmarks.map(l=>l.name);
+    const notInCell=city.placed.filter(l=>!inCell.includes(l.name)).map(l=>l.name);
+    const extraNames=LANDMARKS_POOL.filter(l=>!inCell.includes(l.name)&&!notInCell.includes(l.name)).map(l=>l.name);
+    const wrongPool=[...new Set([...notInCell,...extraNames])].filter(n=>n!==correctName);
+    shuffle(wrongPool);
+    const opts=shuffle([correctName,...wrongPool.slice(0,3)]);
     html+='<div class="quiz-q">Was liegt in Planquadrat <b>'+ref+'</b>?</div>';
     html+='<canvas id="cPQ"></canvas>';
-    const otherNames=city.placed.filter(l=>l.name!==correctName).map(l=>l.name);
-    const extraNames=LANDMARKS_POOL.filter(l=>l.name!==correctName&&!otherNames.includes(l.name)).map(l=>l.name);
-    const wrong=[...otherNames,...shuffle(extraNames)].slice(0,3);
-    const opts=shuffle([correctName,...wrong.slice(0,3)]);
     opts.forEach(o=>{html+='<button class="fopt" data-a="'+o+'">'+o+'</button>';});
     html+='<div id="pqFb"></div></div>';
     html+='<div class="scorebar"><div class="stat"><b id="sc">'+quizScore+'</b><small>Richtig</small></div><div class="stat"><b>'+quizRound+'</b><small>von '+MAX_ROUNDS+'</small></div></div>';
     contentEl.innerHTML=html;
-    drawPlanquadratMap(document.getElementById('cPQ'),city,{row:target.row,col:target.col});
+    drawPlanquadratMap(document.getElementById('cPQ'),city,{row:cell.row,col:cell.col});
 
     contentEl.querySelectorAll('.fopt').forEach(b=>{
       b.onclick=()=>{
@@ -468,6 +484,42 @@ function renderPlanquadrat(){
         quizRound++;
         document.getElementById('sc').textContent=quizScore;
         document.getElementById('pqFb').innerHTML='<p class="result-hint">'+(b.dataset.a===correctName?'✓ Richtig!':'✗ In '+ref+' liegt <b>'+correctName+'</b>')+'</p><button class="btn" id="pqNx">Weiter →</button>';
+        document.getElementById('pqNx').onclick=renderPlanquadrat;
+      };
+    });
+  } else {
+    // Type C: "Was liegt NICHT in Planquadrat X?" — tricky when cell has multiple things
+    const cellsWithMultiple=city.cells.filter(c=>c.landmarks.length>=2);
+    const cell=cellsWithMultiple.length>0?cellsWithMultiple[Math.floor(rng()*cellsWithMultiple.length)]:city.cells.filter(c=>c.landmarks.length>0)[0];
+    const ref=city.letters[cell.row]+(cell.col+1);
+    const inCell=cell.landmarks.map(l=>l.name);
+    // Correct answer: something NOT in this cell
+    const notInCell=city.placed.filter(l=>!inCell.includes(l.name)).map(l=>l.name);
+    const correctName=notInCell.length>0?notInCell[Math.floor(rng()*notInCell.length)]:LANDMARKS_POOL[0].name;
+    // Distractors: things that ARE in this cell
+    const wrongPool=[...inCell];
+    // Add extra from other cells if needed
+    while(wrongPool.length<3){
+      const extra=LANDMARKS_POOL[Math.floor(rng()*LANDMARKS_POOL.length)].name;
+      if(!wrongPool.includes(extra)&&extra!==correctName)wrongPool.push(extra);
+    }
+    shuffle(wrongPool);
+    const opts=shuffle([correctName,...wrongPool.slice(0,3)]);
+    html+='<div class="quiz-q">Was liegt <b>NICHT</b> in Planquadrat <b>'+ref+'</b>?</div>';
+    html+='<canvas id="cPQ"></canvas>';
+    opts.forEach(o=>{html+='<button class="fopt" data-a="'+o+'">'+o+'</button>';});
+    html+='<div id="pqFb"></div></div>';
+    html+='<div class="scorebar"><div class="stat"><b id="sc">'+quizScore+'</b><small>Richtig</small></div><div class="stat"><b>'+quizRound+'</b><small>von '+MAX_ROUNDS+'</small></div></div>';
+    contentEl.innerHTML=html;
+    drawPlanquadratMap(document.getElementById('cPQ'),city,{row:cell.row,col:cell.col});
+
+    contentEl.querySelectorAll('.fopt').forEach(b=>{
+      b.onclick=()=>{
+        contentEl.querySelectorAll('.fopt').forEach(x=>{x.disabled=true;if(x.dataset.a===correctName)x.classList.add('correct');else if(x===b&&b.dataset.a!==correctName)x.classList.add('incorrect');});
+        if(b.dataset.a===correctName)quizScore++;
+        quizRound++;
+        document.getElementById('sc').textContent=quizScore;
+        document.getElementById('pqFb').innerHTML='<p class="result-hint">'+(b.dataset.a===correctName?'✓ Richtig!':'✗ <b>'+correctName+'</b> liegt nicht in '+ref)+'</p><button class="btn" id="pqNx">Weiter →</button>';
         document.getElementById('pqNx').onclick=renderPlanquadrat;
       };
     });
