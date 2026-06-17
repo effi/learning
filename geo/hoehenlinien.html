@@ -353,27 +353,44 @@ function drawContourMap(canvas,shape,minAlt,maxAlt,interval,path,opts){
       else if(cell===10){segs.push([gx,gy+l,gx+t,gy]);segs.push([gx+b2,gy+1,gx+1,gy+r]);}
       segs.forEach(s=>{ctx.moveTo(s[0]*sx,s[1]*sy);ctx.lineTo(s[2]*sx,s[3]*sy);});
     }
+    // Collect contour segments for label placement
+    const contourSegs=[];
+    for(let gy=0;gy<gh-1;gy++)for(let gx=0;gx<gw-1;gx++){
+      const tl=grid[gy*gw+gx]>=alt?1:0,tr=grid[gy*gw+gx+1]>=alt?1:0;
+      const br=grid[(gy+1)*gw+gx+1]>=alt?1:0,bl=grid[(gy+1)*gw+gx]>=alt?1:0;
+      const cell=tl*8+tr*4+br*2+bl;if(cell===0||cell===15)continue;
+      const v00=grid[gy*gw+gx],v10=grid[gy*gw+gx+1],v11=grid[(gy+1)*gw+gx+1],v01=grid[(gy+1)*gw+gx];
+      const t2=v10!==v00?(alt-v00)/(v10-v00):0.5;
+      const r2=v11!==v10?(alt-v10)/(v11-v10):0.5;
+      const b3=v11!==v01?(alt-v01)/(v11-v01):0.5;
+      const l2=v01!==v00?(alt-v00)/(v01-v00):0.5;
+      let seg2=null;
+      if(cell===1||cell===14)seg2=[gx,gy+l2,gx+b3,gy+1];
+      else if(cell===2||cell===13)seg2=[gx+b3,gy+1,gx+1,gy+r2];
+      else if(cell===3||cell===12)seg2=[gx,gy+l2,gx+1,gy+r2];
+      else if(cell===4||cell===11)seg2=[gx+t2,gy,gx+1,gy+r2];
+      else if(cell===6||cell===9)seg2=[gx+t2,gy,gx+b3,gy+1];
+      else if(cell===7||cell===8)seg2=[gx,gy+l2,gx+t2,gy];
+      if(seg2){
+        const mx=(seg2[0]+seg2[2])/2*sx,my=(seg2[1]+seg2[3])/2*sy;
+        if(mx>W*.2&&mx<W*.8&&my>H*.15&&my<H*.85)contourSegs.push({x:mx,y:my});
+      }
+    }
     ctx.stroke();
 
-    // Label this contour line
-    ctx.font='bold 12px -apple-system,sans-serif';
-    ctx.fillStyle='#5a3e15';ctx.textAlign='center';
-    // Find a point on this contour to place label
-    let placed=false;
-    for(let gx=Math.floor(gw*.3);gx<Math.floor(gw*.75)&&!placed;gx+=3){
-      for(let gy=Math.floor(gh*.2);gy<Math.floor(gh*.8)&&!placed;gy+=3){
-        const v=grid[gy*gw+gx];
-        if(Math.abs(v-alt)<interval*.15){
-          // Clear background for readability
-          const tx=gx*sx,ty=gy*sy;
-          const m=ctx.measureText(alt+'m');
-          ctx.fillStyle='rgba(249,247,241,.85)';
-          ctx.fillRect(tx-m.width/2-2,ty-8,m.width+4,13);
-          ctx.fillStyle='#5a3e15';
-          ctx.fillText(alt+'m',tx,ty+3);
-          placed=true;
-        }
-      }
+    // Place label on a contour segment near the center
+    if(contourSegs.length>0){
+      ctx.font='bold 12px -apple-system,sans-serif';
+      ctx.textAlign='center';
+      // Pick segment closest to center of map
+      const centerX=W*.5,centerY=H*.5;
+      contourSegs.sort((a,b)=>((a.x-centerX)**2+(a.y-centerY)**2)-((b.x-centerX)**2+(b.y-centerY)**2));
+      const lbl=contourSegs[Math.min(2,contourSegs.length-1)];
+      const mt=ctx.measureText(alt+'m');
+      ctx.fillStyle='rgba(249,247,241,.88)';
+      ctx.fillRect(lbl.x-mt.width/2-2,lbl.y-7,mt.width+4,13);
+      ctx.fillStyle='#5a3e15';
+      ctx.fillText(alt+'m',lbl.x,lbl.y+4);
     }
   });
 
@@ -839,14 +856,30 @@ function renderTwoPaths(){
   const shape=pool[Math.floor(rng()*pool.length)];
   const minAlt=advanced?300:200,maxAlt=advanced?1100:600,interval=50;
 
-  // Generate two paths sharing start/end
-  const seed1=Math.floor(rng()*99999);
-  const pathShort=genPath(seed1,5);
-  const pathLong=(function(){
-    let s=seed1+7777;const lr=()=>{s=(s*16807)%2147483647;return s/2147483647;};
-    const startPt=pathShort[0],endPt=pathShort[pathShort.length-1];
+  // Compute total height change (steepness indicator)
+  function computeTotalChange(p){
+    const nSamp=40;let total=0,prevH=null;
+    for(let i=0;i<nSamp;i++){
+      const t=i/(nSamp-1);const fi=t*(p.length-1);
+      const idx=Math.min(p.length-2,Math.floor(fi));const frac=fi-idx;
+      const px=p[idx].x*(1-frac)+p[idx+1].x*frac;
+      const py=p[idx].y*(1-frac)+p[idx+1].y*frac;
+      const h=getHeight(shape,px,py,minAlt,maxAlt);
+      if(prevH!==null)total+=Math.abs(h-prevH);
+      prevH=h;
+    }
+    return total;
+  }
+
+  // Generate multiple candidate paths and pick the pair with biggest contrast
+  function makePath(seed,nCtrl){
+    return genPath(seed,nCtrl);
+  }
+  function makeAltPath(basePath,seedOffset){
+    let s=seedOffset;const lr=()=>{s=(s*16807)%2147483647;return s/2147483647;};
+    const startPt=basePath[0],endPt=basePath[basePath.length-1];
     const ctrl=[startPt];
-    const nMid=7;
+    const nMid=6+Math.floor(lr()*3);
     for(let i=1;i<=nMid;i++){
       const t=i/(nMid+1);
       const baseY=startPt.y*(1-t)+endPt.y*t;
@@ -865,41 +898,27 @@ function renderTwoPaths(){
         pts.push({x:Math.max(.02,Math.min(.98,x)),y:Math.max(.02,Math.min(.98,y))});
       }
     }
-    pts[pts.length-1]=endPt;
+    pts[0]=startPt;pts[pts.length-1]=endPt;
     return pts;
-  })();
-
-  // Compute steepness per unit path length
-  function computeSteepness(p){
-    const nSamp=30;const heights=[];
-    for(let i=0;i<nSamp;i++){
-      const t=i/(nSamp-1);const fi=t*(p.length-1);
-      const idx=Math.min(p.length-2,Math.floor(fi));const frac=fi-idx;
-      const px=p[idx].x*(1-frac)+p[idx+1].x*frac;
-      const py=p[idx].y*(1-frac)+p[idx+1].y*frac;
-      heights.push(getHeight(shape,px,py,minAlt,maxAlt));
-    }
-    let total=0;
-    for(let i=0;i<heights.length-1;i++)total+=Math.abs(heights[i+1]-heights[i]);
-    let pathLen=0;
-    for(let i=0;i<p.length-1;i++){
-      const dx=p[i+1].x-p[i].x,dy=p[i+1].y-p[i].y;
-      pathLen+=Math.sqrt(dx*dx+dy*dy);
-    }
-    return total/Math.max(.01,pathLen);
   }
 
-  // A = steeper, B = gentler
-  let pA=pathShort,pB=pathLong;
-  if(computeSteepness(pathShort)<computeSteepness(pathLong)){
-    [pA,pB]=[pB,pA];
+  // Try several seeds and pick pair with max steepness difference
+  let bestPair=null,bestDiff=0;
+  for(let attempt=0;attempt<5;attempt++){
+    const seed=Math.floor(rng()*99999);
+    const p1=makePath(seed,5);
+    const p2=makeAltPath(p1,seed+7777+attempt*3333);
+    const s1=computeTotalChange(p1),s2=computeTotalChange(p2);
+    const diff=Math.abs(s1-s2);
+    if(diff>bestDiff){bestDiff=diff;bestPair={steep:s1>s2?p1:p2,gentle:s1>s2?p2:p1};}
   }
+  let pA=bestPair.steep,pB=bestPair.gentle;
 
   const colorA='#c2762d',colorB='#4a7fb5';
   const nameA='Orange',nameB='Blau';
   const N=5; // segment markers per path
 
-  let html='<div class="card"><div class="card-title">Zwei Wege vergleichen</div>';
+  let html='<div class="card" id="tp-map-card"><div class="card-title">Zwei Wege vergleichen</div>';
   html+='<div class="card-desc">Zwei Wanderer gehen von A nach B — auf verschiedenen Wegen. Tippe auf einen Weg in der Karte, um sein Höhenprofil zu sehen!</div>';
   html+='<canvas id="dMap2" style="cursor:pointer;"></canvas>';
   html+='<p style="font-size:11px;color:var(--ink-soft);margin:6px 0 0;text-align:center;"><span style="color:'+colorA+';font-weight:700;">━</span> Weg '+nameA+' &nbsp; <span style="color:'+colorB+';font-weight:700;">╍</span> Weg '+nameB+'</p></div>';
@@ -979,7 +998,9 @@ function renderTwoPaths(){
   }
 
   function showStep2(){
-    // Show profile A with numbered markers, ask for steepest segment
+    // Hide map and preview to focus on profile question
+    document.getElementById('tp-map-card').style.display='none';
+    profDiv.style.display='none';
     let h='<div class="card" style="margin-top:8px;"><div class="card-title">Frage 2</div>';
     h+='<div class="quiz-q">Wo ist <b>Weg '+nameA+'</b> am <b>steilsten</b>?</div>';
     h+='<canvas id="profA2"></canvas>';
