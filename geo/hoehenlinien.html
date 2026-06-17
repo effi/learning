@@ -353,7 +353,7 @@ function drawContourMap(canvas,shape,minAlt,maxAlt,interval,path,opts){
       else if(cell===10){segs.push([gx,gy+l,gx+t,gy]);segs.push([gx+b2,gy+1,gx+1,gy+r]);}
       segs.forEach(s=>{ctx.moveTo(s[0]*sx,s[1]*sy);ctx.lineTo(s[2]*sx,s[3]*sy);});
     }
-    // Collect contour segments for label placement
+    // Collect contour segments with direction for rotated label placement
     const contourSegs=[];
     for(let gy=0;gy<gh-1;gy++)for(let gx=0;gx<gw-1;gx++){
       const tl=grid[gy*gw+gx]>=alt?1:0,tr=grid[gy*gw+gx+1]>=alt?1:0;
@@ -373,24 +373,37 @@ function drawContourMap(canvas,shape,minAlt,maxAlt,interval,path,opts){
       else if(cell===7||cell===8)seg2=[gx,gy+l2,gx+t2,gy];
       if(seg2){
         const mx=(seg2[0]+seg2[2])/2*sx,my=(seg2[1]+seg2[3])/2*sy;
-        if(mx>W*.2&&mx<W*.8&&my>H*.15&&my<H*.85)contourSegs.push({x:mx,y:my});
+        // Compute angle of segment direction
+        const dx=(seg2[2]-seg2[0])*sx,dy=(seg2[3]-seg2[1])*sy;
+        let angle=Math.atan2(dy,dx);
+        // Keep text readable: angle between -90° and +90°
+        if(angle>Math.PI/2)angle-=Math.PI;
+        if(angle<-Math.PI/2)angle+=Math.PI;
+        if(mx>W*.15&&mx<W*.85&&my>H*.12&&my<H*.88)contourSegs.push({x:mx,y:my,angle});
       }
     }
     ctx.stroke();
 
-    // Place label on a contour segment near the center
+    // Place rotated label along contour line
     if(contourSegs.length>0){
-      ctx.font='bold 12px -apple-system,sans-serif';
-      ctx.textAlign='center';
-      // Pick segment closest to center of map
-      const centerX=W*.5,centerY=H*.5;
-      contourSegs.sort((a,b)=>((a.x-centerX)**2+(a.y-centerY)**2)-((b.x-centerX)**2+(b.y-centerY)**2));
-      const lbl=contourSegs[Math.min(2,contourSegs.length-1)];
-      const mt=ctx.measureText(alt+'m');
-      ctx.fillStyle='rgba(249,247,241,.88)';
-      ctx.fillRect(lbl.x-mt.width/2-2,lbl.y-7,mt.width+4,13);
+      // Use a staggered target position based on contour level index
+      const li=levels.indexOf(alt);
+      const targetX=W*(.25+(li%3)*.25);
+      const targetY=H*(.3+((li*7)%5)*.1);
+      contourSegs.sort((a,b)=>((a.x-targetX)**2+(a.y-targetY)**2)-((b.x-targetX)**2+(b.y-targetY)**2));
+      const lbl=contourSegs[Math.min(3,contourSegs.length-1)];
+      const txt=''+alt;
+      ctx.save();
+      ctx.translate(lbl.x,lbl.y);
+      ctx.rotate(lbl.angle);
+      ctx.font='bold 11px -apple-system,sans-serif';
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      const mt=ctx.measureText(txt);
+      ctx.fillStyle='rgba(249,247,241,.9)';
+      ctx.fillRect(-mt.width/2-3,-7,mt.width+6,14);
       ctx.fillStyle='#5a3e15';
-      ctx.fillText(alt+'m',lbl.x,lbl.y+4);
+      ctx.fillText(txt,0,0);
+      ctx.restore();
     }
   });
 
