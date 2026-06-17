@@ -903,31 +903,71 @@ function renderDraw(){
 }
 
 /* ━━━━━━ TWO PATHS COMPARISON MODE ━━━━━━ */
-function drawProfileWithMarkers(canvas,shape,minAlt,maxAlt,interval,path,color,N){
-  // Draw profile and add numbered segment markers; return sample heights
+// Find monotonic extrema (peaks/valleys) along profile — markers at these points
+// ensure no oscillation between consecutive markers
+function findProfileExtrema(shape,path,minAlt,maxAlt,targetN){
+  const nSamp=60;const heights=[];
+  for(let i=0;i<nSamp;i++){
+    const t=i/(nSamp-1);const fi=t*(path.length-1);
+    const idx=Math.min(path.length-2,Math.floor(fi));const frac=fi-idx;
+    const px=path[idx].x*(1-frac)+path[idx+1].x*frac;
+    const py=path[idx].y*(1-frac)+path[idx+1].y*frac;
+    heights.push({t,alt:getHeight(shape,px,py,minAlt,maxAlt)});
+  }
+  // Find local extrema (direction changes)
+  const extrema=[heights[0]];
+  for(let i=1;i<heights.length-1;i++){
+    const prev=heights[i-1].alt,cur=heights[i].alt,next=heights[i+1].alt;
+    if((cur>=prev&&cur>=next)||(cur<=prev&&cur<=next)){
+      // Skip if too close to last extremum
+      const last=extrema[extrema.length-1];
+      if(Math.abs(cur-last.alt)>20&&Math.abs(heights[i].t-last.t)>0.08){
+        extrema.push(heights[i]);
+      }
+    }
+  }
+  extrema.push(heights[heights.length-1]);
+  // If too many, thin by removing smallest altitude changes
+  while(extrema.length>targetN){
+    let minDiff=Infinity,minIdx=1;
+    for(let i=1;i<extrema.length-1;i++){
+      const diff=Math.abs(extrema[i].alt-extrema[i-1].alt);
+      if(diff<minDiff){minDiff=diff;minIdx=i;}
+    }
+    extrema.splice(minIdx,1);
+  }
+  // If too few, add midpoints of longest segments
+  while(extrema.length<Math.min(targetN,4)){
+    let maxGap=0,maxIdx=0;
+    for(let i=0;i<extrema.length-1;i++){
+      const gap=extrema[i+1].t-extrema[i].t;
+      if(gap>maxGap){maxGap=gap;maxIdx=i;}
+    }
+    const midT=(extrema[maxIdx].t+extrema[maxIdx+1].t)/2;
+    const fi=midT*(path.length-1);const idx=Math.min(path.length-2,Math.floor(fi));const frac=fi-idx;
+    const px=path[idx].x*(1-frac)+path[idx+1].x*frac;
+    const py=path[idx].y*(1-frac)+path[idx+1].y*frac;
+    extrema.splice(maxIdx+1,0,{t:midT,alt:getHeight(shape,px,py,minAlt,maxAlt)});
+  }
+  return extrema;
+}
+
+function drawProfileWithMarkers(canvas,shape,minAlt,maxAlt,interval,path,color,pts){
+  // Draw profile and add numbered markers at given points
   drawProfile(canvas,shape,minAlt,maxAlt,interval,path);
   const ctx=canvas.getContext('2d');
   const W=canvas.width,H=canvas.height;
   const pad={l:40,r:12,t:14,b:24};
   const pw=W-pad.l-pad.r,ph=H-pad.t-pad.b;
-  // Sample N evenly spaced points and draw markers
-  const pts=[];
-  for(let i=0;i<N;i++){
-    const t=i/(N-1);
-    const fi=t*(path.length-1);const idx=Math.min(path.length-2,Math.floor(fi));const frac=fi-idx;
-    const px=path[idx].x*(1-frac)+path[idx+1].x*frac;
-    const py=path[idx].y*(1-frac)+path[idx+1].y*frac;
-    const h=getHeight(shape,px,py,minAlt,maxAlt);
-    pts.push({t,alt:h});
-    const x=pad.l+t*pw;
-    const y=pad.t+ph*(1-(h-minAlt)/(maxAlt-minAlt));
+  pts.forEach((p,i)=>{
+    const x=pad.l+p.t*pw;
+    const y=pad.t+ph*(1-(p.alt-minAlt)/(maxAlt-minAlt));
     ctx.beginPath();ctx.arc(x,y,5,0,Math.PI*2);
     ctx.fillStyle=color;ctx.fill();
     ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.stroke();
     ctx.font='bold 9px -apple-system,sans-serif';ctx.fillStyle=color;ctx.textAlign='center';
     ctx.fillText(i+1,x,y-9);
-  }
-  return pts;
+  });
 }
 
 function renderTwoPaths(){
@@ -1030,7 +1070,10 @@ function renderTwoPaths(){
 
   const colorA='#c2762d',colorB='#4a7fb5';
   const nameA='Orange',nameB='Blau';
-  const N=5; // segment markers per path
+  // Pre-compute extrema points (peaks/valleys) for both paths — no oscillation between markers
+  const ptsA=findProfileExtrema(shape,pA,minAlt,maxAlt,5);
+  const ptsB=findProfileExtrema(shape,pB,minAlt,maxAlt,5);
+  const NA=ptsA.length,NB=ptsB.length;
 
   let html='<div class="card" id="tp-map-card"><div class="card-title">Zwei Wege vergleichen</div>';
   html+='<div class="card-desc">Zwei Wanderer gehen von A nach B — auf verschiedenen Wegen. Tippe auf einen Weg in der Karte, um sein Höhenprofil zu sehen!</div>';
@@ -1067,8 +1110,9 @@ function renderTwoPaths(){
     const p=which==='A'?pA:pB;
     const color=which==='A'?colorA:colorB;
     const name=which==='A'?nameA:nameB;
+    const pts=which==='A'?ptsA:ptsB;
     profDiv.innerHTML='<div class="card"><div class="card-title" style="color:'+color+'">Profil Weg '+name+'</div><canvas id="tpProfPreview"></canvas></div>';
-    drawProfileWithMarkers(document.getElementById('tpProfPreview'),shape,minAlt,maxAlt,interval,p,color,N);
+    drawProfileWithMarkers(document.getElementById('tpProfPreview'),shape,minAlt,maxAlt,interval,p,color,pts);
   }
   mapC.addEventListener('click',function(e){
     const rect=mapC.getBoundingClientRect();
@@ -1120,11 +1164,11 @@ function renderTwoPaths(){
     h+='<div class="quiz-q">Wo ist <b>Weg '+nameA+'</b> am <b>steilsten</b>?</div>';
     h+='<canvas id="profA2"></canvas>';
     h+='<div class="seg-row" id="steepRowA" style="margin-top:8px;">';
-    for(let i=0;i<N-1;i++) h+='<button class="steep-btn" data-i="'+i+'">'+(i+1)+'→'+(i+2)+'</button>';
+    for(let i=0;i<NA-1;i++) h+='<button class="steep-btn" data-i="'+i+'">'+(i+1)+'→'+(i+2)+'</button>';
     h+='</div><div id="tpFb2" style="margin-top:8px;"></div></div>';
     qDiv.innerHTML=h;
 
-    const ptsA=drawProfileWithMarkers(document.getElementById('profA2'),shape,minAlt,maxAlt,interval,pA,colorA,N);
+    drawProfileWithMarkers(document.getElementById('profA2'),shape,minAlt,maxAlt,interval,pA,colorA,ptsA);
     let maxSl=0,maxIdx=0;
     for(let i=0;i<ptsA.length-1;i++){
       const sl=Math.abs(ptsA[i+1].alt-ptsA[i].alt)/(ptsA[i+1].t-ptsA[i].t);
@@ -1152,11 +1196,11 @@ function renderTwoPaths(){
     h+='<div class="quiz-q">Wo ist <b>Weg '+nameB+'</b> am <b>flachsten</b>?</div>';
     h+='<canvas id="profB2"></canvas>';
     h+='<div class="seg-row" id="flatRowB" style="margin-top:8px;">';
-    for(let i=0;i<N-1;i++) h+='<button class="steep-btn" data-i="'+i+'">'+(i+1)+'→'+(i+2)+'</button>';
+    for(let i=0;i<NB-1;i++) h+='<button class="steep-btn" data-i="'+i+'">'+(i+1)+'→'+(i+2)+'</button>';
     h+='</div><div id="tpFb3" style="margin-top:8px;"></div></div>';
     qDiv.innerHTML=h;
 
-    const ptsB=drawProfileWithMarkers(document.getElementById('profB2'),shape,minAlt,maxAlt,interval,pB,colorB,N);
+    drawProfileWithMarkers(document.getElementById('profB2'),shape,minAlt,maxAlt,interval,pB,colorB,ptsB);
     let minSl=Infinity,minIdx=0;
     for(let i=0;i<ptsB.length-1;i++){
       const sl=Math.abs(ptsB[i+1].alt-ptsB[i].alt)/(ptsB[i+1].t-ptsB[i].t);
