@@ -385,9 +385,28 @@ function drawContourMap(canvas,shape,minAlt,maxAlt,interval,path,opts){
     }
     ctx.stroke();
 
-    // Store label candidates for all contour lines
+    // Group segments into separate contour rings (disconnected components)
+    // then store each ring as its own label candidate
     if(contourSegs.length>0){
-      labelCandidates.push({alt,segs:contourSegs});
+      const clusterDist=W*.15;
+      const used=new Array(contourSegs.length).fill(false);
+      for(let ci=0;ci<contourSegs.length;ci++){
+        if(used[ci])continue;
+        const ring=[contourSegs[ci]];used[ci]=true;
+        let changed=true;
+        while(changed){
+          changed=false;
+          for(let cj=0;cj<contourSegs.length;cj++){
+            if(used[cj])continue;
+            for(const r of ring){
+              if((r.x-contourSegs[cj].x)**2+(r.y-contourSegs[cj].y)**2<clusterDist*clusterDist){
+                ring.push(contourSegs[cj]);used[cj]=true;changed=true;break;
+              }
+            }
+          }
+        }
+        labelCandidates.push({alt,segs:ring});
+      }
     }
   });
 
