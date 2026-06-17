@@ -385,8 +385,8 @@ function drawContourMap(canvas,shape,minAlt,maxAlt,interval,path,opts){
     }
     ctx.stroke();
 
-    // Store label candidates only for major lines (every 100m)
-    if(contourSegs.length>0&&alt%100===0){
+    // Store label candidates for all contour lines
+    if(contourSegs.length>0){
       labelCandidates.push({alt,segs:contourSegs});
     }
   });
