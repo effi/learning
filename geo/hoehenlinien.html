@@ -385,8 +385,8 @@ function drawContourMap(canvas,shape,minAlt,maxAlt,interval,path,opts){
     }
     ctx.stroke();
 
-    // Store label candidates for grouped placement (after all levels)
-    if(contourSegs.length>0){
+    // Store label candidates only for major lines (every 100m)
+    if(contourSegs.length>0&&alt%100===0){
       labelCandidates.push({alt,segs:contourSegs});
     }
   });
@@ -431,13 +431,21 @@ function drawContourMap(canvas,shape,minAlt,maxAlt,interval,path,opts){
       let best=null,bestD=Infinity;
       for(const s of lc.segs){
         if(nearPath(s.x,s.y))continue;
-        const tooClose=placedLabels.some(p=>(p.x-s.x)**2+(p.y-s.y)**2<20*20);
+        const tooClose=placedLabels.some(p=>(p.x-s.x)**2+(p.y-s.y)**2<16*16);
         if(tooClose)continue;
         const d=(s.x-anchor.x)**2+(s.y-anchor.y)**2;
         if(d<bestD){bestD=d;best=s;}
       }
       if(!best){
-        // Fallback: just pick closest to anchor ignoring collisions
+        // Fallback: pick closest to anchor, only check path collision
+        for(const s of lc.segs){
+          if(nearPath(s.x,s.y))continue;
+          const d=(s.x-anchor.x)**2+(s.y-anchor.y)**2;
+          if(d<bestD){bestD=d;best=s;}
+        }
+      }
+      if(!best){
+        // Last resort: pick any segment closest to anchor
         for(const s of lc.segs){
           const d=(s.x-anchor.x)**2+(s.y-anchor.y)**2;
           if(d<bestD){bestD=d;best=s;}
@@ -497,10 +505,11 @@ function drawProfile(canvas,shape,minAlt,maxAlt,interval,path,opts){
   ctx.font='10px -apple-system,sans-serif';ctx.textAlign='right';
   levels.forEach(alt=>{
     const y=pad.t+ph*(1-(alt-minAlt)/(maxAlt-minAlt));
-    ctx.strokeStyle=(alt%200===0)?'#ccc':'#e5e5e5';
-    ctx.lineWidth=(alt%200===0)?1:0.6;
+    const major=(alt%100===0);
+    ctx.strokeStyle=major?'#c4c4c4':'#ddd';
+    ctx.lineWidth=major?1:0.7;
     ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+pw,y);ctx.stroke();
-    ctx.fillStyle='#888';ctx.fillText(alt+'m',pad.l-4,y+3);
+    if(major){ctx.fillStyle='#666';ctx.fillText(alt+'m',pad.l-4,y+3);}
   });
 
   // Axes
