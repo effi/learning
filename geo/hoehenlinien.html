@@ -547,7 +547,7 @@ function drawProfile(canvas,shape,minAlt,maxAlt,interval,path,opts){
 }
 
 /* ━━━━━━ APP STATE ━━━━━━ */
-let mode=0,quizScore=0,quizRound=0,learnIdx=0,advanced=false;
+let mode=0,quizScore=0,quizRound=0,learnIdx=-1,advanced=false;
 const MAX_ROUNDS=6;
 const contentEl=document.getElementById('content');
 let rngSeed=Date.now()%100000;
@@ -601,9 +601,31 @@ const LEARN_ADV=[
   {shape:'adv_cirque',minAlt:400,maxAlt:900,interval:50,straightY:.5},
 ];
 
+function renderLearnDefs(){
+  let html='<div class="card"><div class="card-title">Was sind Höhenlinien?</div>';
+  html+='<div class="card-desc" style="font-size:14px;line-height:1.7;">';
+  html+='<p style="margin:0 0 8px;">Höhenunterschiede werden auf Karten durch <b>Höhenlinien</b> dargestellt.</p>';
+  html+='<p style="margin:0 0 8px;">Höhenlinien verbinden alle Punkte, die auf der <b>gleichen Höhe</b> liegen.</p>';
+  html+='<p style="margin:0 0 8px;">Je <b>enger</b> die Höhenlinien beieinander liegen, umso <b>steiler</b> ist das Gelände.</p>';
+  html+='<p style="margin:0 0 8px;">Auf Karten werden Höhenunterschiede auch durch <b>Farben</b> dargestellt:</p>';
+  html+='<p style="margin:0 0 4px;padding-left:12px;">• Je <b>tiefer</b> → umso dunkler das <span style="color:#2d7a3a;font-weight:700;">Grün</span></p>';
+  html+='<p style="margin:0;padding-left:12px;">• Je <b>höher</b> → umso dunkler das <span style="color:#8b5e2b;font-weight:700;">Braun</span></p>';
+  html+='</div></div>';
+  html+='<div class="info-box"><h3>Merke dir:</h3>';
+  html+='<p><b>Linien eng</b> = steiler Hang</p>';
+  html+='<p><b>Linien weit</b> = flaches Gelände</p>';
+  html+='<p><b>Geschlossene Kreise</b> = Gipfel (Zahlen steigen nach innen)</p></div>';
+  html+='<div class="btn-row"><button class="btn" id="prevL">←</button><button class="btn" id="nextL">Weiter →</button></div>';
+  contentEl.innerHTML=html;
+  document.getElementById('prevL').onclick=()=>{const list=advanced?LEARN_ADV:LEARN_BASIC;learnIdx=list.length-1;renderLearn();};
+  document.getElementById('nextL').onclick=()=>{learnIdx=0;renderLearn();};
+}
+
 function renderLearn(){
+  // learnIdx -1 = definitions page
+  if(learnIdx<0){renderLearnDefs();return;}
   const list=advanced?LEARN_ADV:LEARN_BASIC;
-  if(learnIdx>=list.length)learnIdx=0;
+  if(learnIdx>=list.length){learnIdx=-1;renderLearnDefs();return;}
   const l=list[learnIdx];
   const s=SHAPES[l.shape];
   const path=l.straightY!=null?genStraightPath(l.straightY,60):genPath(l.pathSeed,6);
@@ -614,19 +636,14 @@ function renderLearn(){
   html+='<p style="font-size:11px;color:var(--ink-soft);margin:6px 0 2px;text-align:center;">Profil entlang der Linie A → B:</p>';
   html+='<canvas id="cProf"></canvas>';
   html+='</div>';
-  html+='<div class="info-box"><h3>Merke dir:</h3>';
-  html+='<p><b>Linien eng</b> = steiler Hang</p>';
-  html+='<p><b>Linien weit</b> = flaches Gelände</p>';
-  html+='<p><b>Kreise</b> = Gipfel (Zahlen steigen nach innen)</p>';
-  html+='<p>Die <b style="color:var(--amber)">gestrichelte Linie</b> zeigt den Weg, entlang dem das Profil gezeichnet wird.</p></div>';
   html+='<div class="btn-row"><button class="btn" id="prevL">←</button><button class="btn" id="nextL">Weiter →</button></div>';
   contentEl.innerHTML=html;
 
   drawContourMap(document.getElementById('cMap'),l.shape,l.minAlt,l.maxAlt,l.interval,path);
   drawProfile(document.getElementById('cProf'),l.shape,l.minAlt,l.maxAlt,l.interval,path);
 
-  document.getElementById('prevL').onclick=()=>{const list=advanced?LEARN_ADV:LEARN_BASIC;learnIdx=(learnIdx-1+list.length)%list.length;renderLearn();};
-  document.getElementById('nextL').onclick=()=>{const list=advanced?LEARN_ADV:LEARN_BASIC;learnIdx=(learnIdx+1)%list.length;renderLearn();};
+  document.getElementById('prevL').onclick=()=>{const list=advanced?LEARN_ADV:LEARN_BASIC;learnIdx--;if(learnIdx<-1)learnIdx=list.length-1;renderLearn();};
+  document.getElementById('nextL').onclick=()=>{learnIdx++;renderLearn();};
 }
 
 /* ━━━━━━ DRAW PROFILE MODE ━━━━━━ */
@@ -1202,6 +1219,15 @@ const MSQ=[
   {q:'Welcher Maßstab zeigt mehr Details?',ans:'1:10.000',opts:['1:10.000','1:50.000','1:100.000','1:250.000']},
   {q:'Maßstab 1:100.000 — 1 cm auf der Karte sind in echt …',ans:'1 km',opts:['100 m','1 km','10 km','100 km']},
   {q:'Maßstab 1:25.000 — 2 km in echt sind auf der Karte …',ans:'8 cm',opts:['2 cm','4 cm','8 cm','20 cm']},
+  // Definitionen Höhenlinien
+  {q:'Höhenlinien verbinden alle Punkte, die …',ans:'auf gleicher Höhe liegen',opts:['auf gleicher Höhe liegen','am steilsten sind','am nächsten beieinander liegen','den gleichen Abstand haben']},
+  {q:'Was bedeutet es, wenn Höhenlinien sehr eng beieinander liegen?',ans:'Das Gelände ist steil',opts:['Das Gelände ist steil','Das Gelände ist flach','Es ist ein Tal','Es ist ein See']},
+  {q:'Was bedeutet es, wenn Höhenlinien weit auseinander liegen?',ans:'Das Gelände ist flach',opts:['Das Gelände ist steil','Das Gelände ist flach','Es geht bergauf','Es ist ein Gipfel']},
+  {q:'Welche Farbe wird auf Karten für tiefes Gelände verwendet?',ans:'Dunkles Grün',opts:['Dunkles Grün','Dunkles Braun','Helles Blau','Gelb']},
+  {q:'Welche Farbe wird auf Karten für hohes Gelände verwendet?',ans:'Dunkles Braun',opts:['Dunkles Grün','Dunkles Braun','Weiss','Rot']},
+  {q:'Geschlossene kreisförmige Höhenlinien zeigen meistens …',ans:'einen Gipfel',opts:['einen Gipfel','ein Tal','einen See','eine Ebene']},
+  {q:'Höhenunterschiede werden auf Karten dargestellt durch …',ans:'Höhenlinien und Farben',opts:['Höhenlinien und Farben','Pfeile','Schattierungen','Buchstaben']},
+  {q:'Wenn die Zahlen der Höhenlinien nach innen größer werden, ist dort …',ans:'ein Berg',opts:['ein Berg','ein Tal','ein See','eine Senke']},
 ];
 
 function renderMassstab(){
