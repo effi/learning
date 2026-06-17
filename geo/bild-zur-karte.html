@@ -848,11 +848,11 @@ function renderWeg(){
   if(!route){quizRound++;renderWeg();return;}
 
   if(advanced){
-    // Alternate: even rounds = describe shown route, odd = build route yourself
-    if(quizRound%2===0) renderWegAdvanced(mapData,route);
-    else renderWegBuildRoute(mapData,route);
+    renderWegBuildRoute(mapData,route);
   } else {
-    renderWegNormal(mapData,route);
+    // Alternate: even = MC match, odd = describe shown route step-by-step
+    if(quizRound%2===0) renderWegNormal(mapData,route);
+    else renderWegAdvanced(mapData,route);
   }
 }
 
