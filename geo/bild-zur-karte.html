@@ -1021,55 +1021,20 @@ function renderWegAdvanced(mapData,route){
   }
 
   function showTurnStep(d){
-    // Two-phase: first direction, then "how far"
-    const dirCorrect=d.dir==='geradeaus'?'Geradeaus':d.dir.charAt(0).toUpperCase()+d.dir.slice(1);
-    const dirOpts=shuffle(['Links abbiegen','Rechts abbiegen','Geradeaus'].filter(x=>x!==dirCorrect).slice(0,2).concat([dirCorrect]));
-
-    let h='<div style="margin-top:8px;"><p style="font-size:12px;font-weight:600;margin:0 0 6px;">Schritt '+stepIdx+'/'+totalSteps+': Welche Richtung?</p>';
-    h+='<div style="display:flex;gap:6px;">';
-    dirOpts.forEach(o=>{h+='<button class="cross-btn" data-a="'+o+'" style="flex:1;">'+o+'</button>';});
-    h+='</div></div>';
-    stepsDiv.innerHTML=h;
-
-    stepsDiv.querySelectorAll('.cross-btn').forEach(b=>{
-      b.onclick=()=>{
-        const dirOk=(b.dataset.a===dirCorrect);
-        stepsDiv.querySelectorAll('.cross-btn').forEach(x=>{
-          x.disabled=true;
-          if(x.dataset.a===dirCorrect)x.classList.add('correct');
-          else if(x===b&&!dirOk)x.classList.add('incorrect');
-        });
-        if(dirOk)stepScore+=0.5;
-        // Phase 2: which street / how far
-        setTimeout(()=>showHowFar(d),700);
-      };
+    // Phase 1: Direction + Street combined ("Rechts in die Bismarckstraße")
+    const dirPart=d.dir==='geradeaus'?'Geradeaus auf der '+d.street:d.dir.charAt(0).toUpperCase()+d.dir.slice(1)+' in die '+d.street;
+    const otherStreets=allStreets.filter(s=>s!==d.street);shuffle(otherStreets);
+    const wrongDirs=['Links abbiegen','Rechts abbiegen','Geradeaus'].filter(x=>{
+      const full=x==='Geradeaus'?'Geradeaus auf der '+d.street:x+' in die '+d.street;
+      return full!==dirPart;
     });
-  }
-
-  function showHowFar(d){
-    const correctStreet='In die '+d.street;
-    const destNode=mapData.nodes[d.toIdx];
-    let howFar='bis zur nächsten Kreuzung';
-    if(destNode.lm) howFar='bis zum '+destNode.lm;
-    else if(d.toIdx===route[route.length-1]) howFar='bis zum Ziel';
-    else{
-      const nb=getNodeNeighbors(mapData,d.toIdx);
-      howFar=nb.length>=3?'bis zur nächsten Kreuzung':'bis zum Ende der Straße';
-    }
-    const correctOpt=correctStreet+', '+howFar;
-
-    // Wrong options: wrong street or wrong destination
-    const otherStreets=allStreets.filter(s=>s!==d.street);
-    shuffle(otherStreets);
-    const wrongTargets=['bis zum Park','bis zur Ampel','bis zur nächsten Kreuzung','bis zum Brunnen','bis zur Kirche'].filter(t=>t!==howFar);
-    shuffle(wrongTargets);
     const wrongOpts=[
-      'In die '+(otherStreets[0]||'Straße')+', '+(wrongTargets[0]||howFar),
-      correctStreet+', '+(wrongTargets[1]||wrongTargets[0]||'bis zum Ende'),
+      wrongDirs[0]==='Geradeaus'?'Geradeaus auf der '+(otherStreets[0]||d.street):wrongDirs[0]+' in die '+(otherStreets[0]||d.street),
+      wrongDirs[1]==='Geradeaus'?'Geradeaus auf der '+d.street:wrongDirs[1]+' in die '+d.street,
     ];
+    const opts=shuffle([dirPart,...wrongOpts]);
 
-    const opts=shuffle([correctOpt,...wrongOpts]);
-    let h='<div style="margin-top:8px;"><p style="font-size:12px;font-weight:600;margin:0 0 6px;">Wohin und wie weit?</p>';
+    let h='<div style="margin-top:8px;"><p style="font-size:12px;font-weight:600;margin:0 0 6px;">Schritt '+stepIdx+'/'+totalSteps+': Wohin gehst du?</p>';
     h+='<div style="display:flex;flex-direction:column;gap:6px;">';
     opts.forEach(o=>{h+='<button class="cross-btn" data-a="'+o+'">'+o+'</button>';});
     h+='</div></div>';
@@ -1077,10 +1042,45 @@ function renderWegAdvanced(mapData,route){
 
     stepsDiv.querySelectorAll('.cross-btn').forEach(b=>{
       b.onclick=()=>{
-        const ok=(b.dataset.a===correctOpt);
+        const ok=(b.dataset.a===dirPart);
         stepsDiv.querySelectorAll('.cross-btn').forEach(x=>{
           x.disabled=true;
-          if(x.dataset.a===correctOpt)x.classList.add('correct');
+          if(x.dataset.a===dirPart)x.classList.add('correct');
+          else if(x===b&&!ok)x.classList.add('incorrect');
+        });
+        if(ok)stepScore+=0.5;
+        setTimeout(()=>showHowFar(d),700);
+      };
+    });
+  }
+
+  function showHowFar(d){
+    // Phase 2: Only "bis zu..." (the target/destination)
+    const destNode=mapData.nodes[d.toIdx];
+    let correctTarget='bis zur nächsten Kreuzung';
+    if(destNode.lm) correctTarget='bis zum '+destNode.lm;
+    else if(d.toIdx===route[route.length-1]) correctTarget='bis zum Ziel (B)';
+    else{
+      const nb=getNodeNeighbors(mapData,d.toIdx);
+      correctTarget=nb.length>=3?'bis zur nächsten Kreuzung':'bis zum Ende der Straße';
+    }
+
+    const wrongTargets=['bis zum Park','bis zur Ampel','bis zur nächsten Kreuzung','bis zum Brunnen','bis zur Kirche','bis zum Rathaus','bis zur Schule','bis zum Ende der Straße'].filter(t=>t!==correctTarget);
+    shuffle(wrongTargets);
+    const opts=shuffle([correctTarget,wrongTargets[0],wrongTargets[1]]);
+
+    let h='<div style="margin-top:8px;"><p style="font-size:12px;font-weight:600;margin:0 0 6px;">Wie weit?</p>';
+    h+='<div style="display:flex;flex-direction:column;gap:6px;">';
+    opts.forEach(o=>{h+='<button class="cross-btn" data-a="'+o+'">'+o+'</button>';});
+    h+='</div></div>';
+    stepsDiv.innerHTML=h;
+
+    stepsDiv.querySelectorAll('.cross-btn').forEach(b=>{
+      b.onclick=()=>{
+        const ok=(b.dataset.a===correctTarget);
+        stepsDiv.querySelectorAll('.cross-btn').forEach(x=>{
+          x.disabled=true;
+          if(x.dataset.a===correctTarget)x.classList.add('correct');
           else if(x===b&&!ok)x.classList.add('incorrect');
         });
         if(ok)stepScore+=0.5;
@@ -1225,35 +1225,44 @@ function renderWegBuildRoute(mapData,route){
           if(b.dataset.a===correctOpt)stepScore++;stepIdx++;setTimeout(showDec,800);
         };});
       } else {
-        // Direction question
-        const dirCorrect=d.dir==='geradeaus'?'Geradeaus':d.dir.charAt(0).toUpperCase()+d.dir.slice(1);
-        const dirOpts=shuffle(['Links abbiegen','Rechts abbiegen','Geradeaus']);
-        let h='<div style="margin-top:8px;"><p style="font-size:12px;font-weight:600;margin:0 0 6px;">Schritt '+stepIdx+'/'+totalSteps+': Richtung?</p>';
-        h+='<div style="display:flex;gap:6px;">';
-        dirOpts.forEach(o=>{h+='<button class="cross-btn" data-a="'+o+'" style="flex:1;">'+o+'</button>';});
+        // Phase 1: Direction + Street ("Rechts in die Bismarckstraße")
+        const dirPart=d.dir==='geradeaus'?'Geradeaus auf der '+d.street:d.dir.charAt(0).toUpperCase()+d.dir.slice(1)+' in die '+d.street;
+        const otherSt=allStreets.filter(s=>s!==d.street);shuffle(otherSt);
+        const wrongDirs=['Links abbiegen','Rechts abbiegen','Geradeaus'].filter(x=>{
+          const full=x==='Geradeaus'?'Geradeaus auf der '+d.street:x+' in die '+d.street;
+          return full!==dirPart;
+        });
+        const wOpts=[
+          wrongDirs[0]==='Geradeaus'?'Geradeaus auf der '+(otherSt[0]||d.street):wrongDirs[0]+' in die '+(otherSt[0]||d.street),
+          wrongDirs[1]==='Geradeaus'?'Geradeaus auf der '+d.street:wrongDirs[1]+' in die '+d.street,
+        ];
+        const dirOpts=shuffle([dirPart,...wOpts]);
+        let h='<div style="margin-top:8px;"><p style="font-size:12px;font-weight:600;margin:0 0 6px;">Schritt '+stepIdx+'/'+totalSteps+': Wohin gehst du?</p>';
+        h+='<div style="display:flex;flex-direction:column;gap:6px;">';
+        dirOpts.forEach(o=>{h+='<button class="cross-btn" data-a="'+o+'">'+o+'</button>';});
         h+='</div></div>';
         stepsDiv.innerHTML=h;
         stepsDiv.querySelectorAll('.cross-btn').forEach(b=>{b.onclick=()=>{
-          stepsDiv.querySelectorAll('.cross-btn').forEach(x=>{x.disabled=true;if(x.dataset.a===dirCorrect)x.classList.add('correct');else if(x===b&&b.dataset.a!==dirCorrect)x.classList.add('incorrect');});
-          if(b.dataset.a===dirCorrect)stepScore+=0.5;
+          stepsDiv.querySelectorAll('.cross-btn').forEach(x=>{x.disabled=true;if(x.dataset.a===dirPart)x.classList.add('correct');else if(x===b&&b.dataset.a!==dirPart)x.classList.add('incorrect');});
+          if(b.dataset.a===dirPart)stepScore+=0.5;
           setTimeout(()=>{
-            // How far question
+            // Phase 2: only "bis zu..."
             const destNode=mapData.nodes[d.toIdx];
-            let howFar='bis zur nächsten Kreuzung';
-            if(destNode.lm)howFar='bis zum '+destNode.lm;
-            else if(d.toIdx===fullPath[fullPath.length-1])howFar='bis zum Ziel';
-            const correctOpt2='In die '+d.street+', '+howFar;
-            const other=allStreets.filter(s=>s!==d.street);shuffle(other);
-            const wrongT=['bis zum Park','bis zur Ampel','bis zur nächsten Kreuzung','bis zum Brunnen'].filter(t=>t!==howFar);shuffle(wrongT);
-            const opts2=shuffle([correctOpt2,'In die '+(other[0]||'Straße')+', '+(wrongT[0]||howFar),correctOpt2.replace(howFar,wrongT[1]||'bis zum Ende')]);
-            let h2='<div style="margin-top:8px;"><p style="font-size:12px;font-weight:600;margin:0 0 6px;">Wohin und wie weit?</p>';
+            let correctTarget='bis zur nächsten Kreuzung';
+            if(destNode.lm)correctTarget='bis zum '+destNode.lm;
+            else if(d.toIdx===fullPath[fullPath.length-1])correctTarget='bis zum Ziel (B)';
+            else{const nb=getNodeNeighbors(mapData,d.toIdx);correctTarget=nb.length>=3?'bis zur nächsten Kreuzung':'bis zum Ende der Straße';}
+            const wrongT=['bis zum Park','bis zur Ampel','bis zur nächsten Kreuzung','bis zum Brunnen','bis zur Kirche','bis zum Rathaus'].filter(t=>t!==correctTarget);
+            shuffle(wrongT);
+            const opts2=shuffle([correctTarget,wrongT[0],wrongT[1]]);
+            let h2='<div style="margin-top:8px;"><p style="font-size:12px;font-weight:600;margin:0 0 6px;">Wie weit?</p>';
             h2+='<div style="display:flex;flex-direction:column;gap:6px;">';
             opts2.forEach(o=>{h2+='<button class="cross-btn" data-a="'+o+'">'+o+'</button>';});
             h2+='</div></div>';
             stepsDiv.innerHTML=h2;
             stepsDiv.querySelectorAll('.cross-btn').forEach(b2=>{b2.onclick=()=>{
-              stepsDiv.querySelectorAll('.cross-btn').forEach(x=>{x.disabled=true;if(x.dataset.a===correctOpt2)x.classList.add('correct');else if(x===b2&&b2.dataset.a!==correctOpt2)x.classList.add('incorrect');});
-              if(b2.dataset.a===correctOpt2)stepScore+=0.5;stepIdx++;setTimeout(showDec,800);
+              stepsDiv.querySelectorAll('.cross-btn').forEach(x=>{x.disabled=true;if(x.dataset.a===correctTarget)x.classList.add('correct');else if(x===b2&&b2.dataset.a!==correctTarget)x.classList.add('incorrect');});
+              if(b2.dataset.a===correctTarget)stepScore+=0.5;stepIdx++;setTimeout(showDec,800);
             };});
           },700);
         };});
