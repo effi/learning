@@ -1148,10 +1148,29 @@ function renderWegBuildRoute(mapData,route){
     mapData.nodes.forEach((n,i)=>{const d=(mx-nx(n.x))**2+(my-ny(n.y))**2;if(d<bestD){bestD=d;bestIdx=i;}});
     if(bestIdx<0||bestD>25*25)return;
     if(userRoute.includes(bestIdx))return;
-    // Only direct neighbors allowed (connected by a single edge)
+    // Allowed: nodes reachable along the SAME street (1-3 edges, all same name)
     const lastIdx=userRoute[userRoute.length-1];
+    let canReach=false;
     const directNb=getNodeNeighbors(mapData,lastIdx);
-    if(!directNb.some(n=>n.to===bestIdx))return;
+    // Check 1-hop (direct neighbor)
+    for(const n of directNb){
+      if(n.to===bestIdx){canReach=true;break;}
+      // Check 2-hop (same street continues)
+      const nb2=getNodeNeighbors(mapData,n.to);
+      for(const n2 of nb2){
+        if(n2.to===bestIdx&&n2.street===n.street){canReach=true;break;}
+        // Check 3-hop (same street continues further)
+        if(n2.street===n.street){
+          const nb3=getNodeNeighbors(mapData,n2.to);
+          for(const n3 of nb3){
+            if(n3.to===bestIdx&&n3.street===n.street){canReach=true;break;}
+          }
+        }
+        if(canReach)break;
+      }
+      if(canReach)break;
+    }
+    if(!canReach)return;
     userRoute.push(bestIdx);
     redraw();
     if(bestIdx===endIdx){
