@@ -68,6 +68,12 @@ canvas{display:block;width:100%;height:auto;border-radius:10px;}
 .steep-btn.incorrect{border-color:var(--wrong);background:rgba(189,82,57,.1);color:var(--wrong);}
 .steep-btn:disabled{cursor:default;}
 .seg-row{display:flex;gap:6px;margin-top:8px;}
+.toggle-row{display:flex;align-items:center;justify-content:flex-end;gap:7px;margin:0 0 2px;}
+.toggle-row label{font-size:11px;font-weight:600;color:var(--ink-soft);cursor:pointer;}
+.toggle-sw{position:relative;width:36px;height:20px;background:var(--line);border-radius:10px;cursor:pointer;border:0;padding:0;transition:.2s;}
+.toggle-sw::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.2s;}
+.toggle-sw.on{background:var(--amber);}
+.toggle-sw.on::after{left:18px;}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;}}
 </style>
 </head>
@@ -84,24 +90,180 @@ canvas{display:block;width:100%;height:auto;border-radius:10px;}
   <button class="mbtn" id="m2" aria-pressed="false">Quiz</button>
   <button class="mbtn" id="m3" aria-pressed="false">Maßstab</button>
 </div>
+<div class="toggle-row">
+  <label for="advToggle">Advanced</label>
+  <button class="toggle-sw" id="advToggle" role="switch" aria-checked="false"></button>
+</div>
 <div id="content"></div>
 </div>
 <script>
-/* ━━━━━━ SIMPLE TERRAIN: analytical shapes ━━━━━━ */
-function terrain_peak(x,y){const dx=x-.5,dy=y-.5;return 1-Math.sqrt(dx*dx+dy*dy)*2;}
-function terrain_ridge(x,y){return 1-Math.abs(y-.5)*2;}
-function terrain_valley(x,y){return Math.abs(y-.5)*2;}
-function terrain_slope(x,y){return x;}
-function terrain_plateau(x,y){const dx=x-.5,dy=y-.5;const d=Math.sqrt(dx*dx+dy*dy);return d<.25?1:Math.max(0,1-(d-.25)*3);}
-function terrain_saddle(x,y){const dx=(x-.5)*2,dy=(y-.5)*2;return .5+dx*dx*.3-dy*dy*.4;}
+/* ━━━━━━ TERRAIN: organic shapes with subtle noise ━━━━━━ */
+// Simple value noise for organic contours
+function _hash(ix,iy){let n=ix*374761393+iy*668265263;n=(n^(n>>13))*1274126177;return(n^(n>>16))/2147483648;}
+function _noise(x,y){
+  const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy;
+  const sx=fx*fx*(3-2*fx),sy=fy*fy*(3-2*fy);
+  const a=_hash(ix,iy),b=_hash(ix+1,iy),c=_hash(ix,iy+1),d=_hash(ix+1,iy+1);
+  return a+(b-a)*sx+(c-a)*sy+(a-b-c+d)*sx*sy;
+}
+function fbm(x,y,oct){let v=0,amp=1,freq=1,tot=0;for(let i=0;i<oct;i++){v+=_noise(x*freq,y*freq)*amp;tot+=amp;amp*=.5;freq*=2;}return v/tot;}
+
+function terrain_peak(x,y){
+  const dx=x-.52,dy=y-.48;
+  const d=Math.sqrt(dx*dx+dy*dy);
+  const base=1-d*2.1;
+  const n=fbm(x*4.5+2.3,y*4.5+1.7,3)*.18;
+  // small shoulder bump
+  const sx=x-.72,sy=y-.35,sd=Math.sqrt(sx*sx+sy*sy);
+  const shoulder=Math.max(0,.3-sd*1.8);
+  return Math.max(0,Math.min(1,base+n+shoulder));
+}
+function terrain_ridge(x,y){
+  const wobble=Math.sin(x*Math.PI*2.5)*.08+fbm(x*3,y*3,2)*.1;
+  const dist=Math.abs(y-.5+wobble);
+  return Math.max(0,1-dist*2.3);
+}
+function terrain_valley(x,y){
+  const bend=Math.sin(x*Math.PI*2)*.1+fbm(x*4,y*4,2)*.07;
+  const dist=Math.abs(y-.5+bend);
+  return Math.min(1,dist*2.2+fbm(x*5,y*5,2)*.08);
+}
+function terrain_slope(x,y){
+  const base=x*.85+.08;
+  const n=fbm(x*4+7,y*4+3,3)*.12;
+  const step=y>.4&&y<.6?0.06:0;
+  return Math.max(0,Math.min(1,base+n+step));
+}
+function terrain_plateau(x,y){
+  const dx=x-.5,dy=y-.48;
+  const d=Math.sqrt(dx*dx+dy*dy*1.3);
+  const n=fbm(x*3.5+5,y*3.5,3)*.1;
+  const flat=d<.22?1:Math.max(0,1-(d-.22)*3.2);
+  return Math.max(0,Math.min(1,flat+n));
+}
+function terrain_saddle(x,y){
+  const dx=(x-.5)*2,dy=(y-.5)*2;
+  const base=.5+dx*dx*.35-dy*dy*.4;
+  const n=fbm(x*4+1,y*4+2,2)*.09;
+  return Math.max(0,Math.min(1,base+n));
+}
+function terrain_spur(x,y){
+  // A ridge that descends from top-left to bottom-right (asymmetric)
+  const along=x*.6+y*.4;
+  const across=Math.abs((y-.5)-(x-.5)*.5);
+  const base=1-along*.9-across*1.4;
+  const n=fbm(x*4+9,y*4+3,3)*.12;
+  return Math.max(0,Math.min(1,base+n));
+}
+function terrain_cwm(x,y){
+  // Bowl/cirque — open on one side (right), enclosed on three sides
+  const dx=x-.4,dy=y-.5;
+  const d=Math.sqrt(dx*dx+dy*dy);
+  const angle=Math.atan2(dy,dx);
+  const openFactor=(angle>-0.6&&angle<0.6)?1.8:1;
+  const base=1-d*openFactor*1.6;
+  const n=fbm(x*4+6,y*4+8,3)*.1;
+  return Math.max(0,Math.min(1,base+n));
+}
+function terrain_ascent(x,y){
+  // Asymmetric ascent — steep on one side, gentle on the other
+  const shifted=y-.5;
+  const base=shifted>0?shifted*1.2:(1+shifted*3)*.4;
+  const tilt=x*.25;
+  const n=fbm(x*5+4,y*5+1,3)*.1;
+  return Math.max(0,Math.min(1,base+tilt+n));
+}
+function terrain_hills(x,y){
+  // Two offset hills — not symmetrical
+  const d1x=x-.3,d1y=y-.35,d1=Math.sqrt(d1x*d1x+d1y*d1y);
+  const d2x=x-.68,d2y=y-.62,d2=Math.sqrt(d2x*d2x+d2y*d2y);
+  const h1=Math.max(0,1-d1*3);
+  const h2=Math.max(0,.8-d2*2.8);
+  const n=fbm(x*4+3,y*4+5,3)*.1;
+  return Math.max(0,Math.min(1,Math.max(h1,h2)+n));
+}
+
+// Advanced terrains — more complex, busier, realistic
+function terrain_adv_mountain(x,y){
+  // Multi-peak mountain with subsidiary ridges
+  const dx=x-.45,dy=y-.5;
+  const d=Math.sqrt(dx*dx+dy*dy);
+  const main=Math.max(0,1-d*2);
+  const r1x=x-.7,r1y=y-.3,r1=Math.max(0,.55-Math.sqrt(r1x*r1x+r1y*r1y)*2.5);
+  const r2x=x-.25,r2y=y-.75,r2=Math.max(0,.45-Math.sqrt(r2x*r2x+r2y*r2y)*2.2);
+  const ridge=Math.max(0,.3-Math.abs(y-.5+Math.sin(x*5)*.08)*1.5)*(x>.3?1:0);
+  const n=fbm(x*6+1.5,y*6+2.5,4)*.15;
+  return Math.max(0,Math.min(1,Math.max(main,r1,r2)+ridge*.3+n));
+}
+function terrain_adv_valley(x,y){
+  // Deep valley with side ravines
+  const mainBend=Math.sin(x*Math.PI*1.8)*.15+Math.sin(x*Math.PI*4)*.05;
+  const dist=Math.abs(y-.5+mainBend);
+  const base=Math.min(1,dist*2.5);
+  const ravine1=Math.max(0,.15-Math.abs(x-.35)*1.5)*Math.max(0,1-Math.abs(y-.5+mainBend-.1)*8);
+  const ravine2=Math.max(0,.12-Math.abs(x-.65)*1.2)*Math.max(0,1-Math.abs(y-.5+mainBend+.08)*7);
+  const n=fbm(x*7+2,y*7+4,4)*.1;
+  return Math.max(0,Math.min(1,base-ravine1-ravine2+n));
+}
+function terrain_adv_plateau(x,y){
+  // Plateau with eroded edges and a small crater
+  const dx=x-.5,dy=y-.48;
+  const d=Math.sqrt(dx*dx+dy*dy*1.2);
+  const flat=d<.2?1:d<.28?1-(d-.2)/.08*.15:Math.max(0,1-(d-.2)*2.8);
+  const crater_dx=x-.55,crater_dy=y-.42,cd=Math.sqrt(crater_dx*crater_dx+crater_dy*crater_dy);
+  const crater=cd<.08?-(1-cd/.08)*.2:0;
+  const erosion=fbm(x*8+3,y*8+7,4)*.18;
+  const gullies=Math.max(0,Math.sin(Math.atan2(dy,dx)*5)*.08)*(d>.2?1:0);
+  return Math.max(0,Math.min(1,flat+crater+erosion-gullies));
+}
+function terrain_adv_ridge(x,y){
+  // Complex ridge system with spurs branching off
+  const mainRidge=Math.max(0,.7-Math.abs(y-.5+Math.sin(x*Math.PI*3)*.12)*2);
+  const spur1=Math.max(0,.4-Math.abs(x-.3+Math.sin(y*8)*.03)*2)*(y>.5?1:0)*Math.max(0,1-(y-.5)*3);
+  const spur2=Math.max(0,.35-Math.abs(x-.7-Math.sin(y*6)*.04)*2)*(y<.5?1:0)*Math.max(0,1-(.5-y)*3);
+  const n=fbm(x*6+5,y*6+1,4)*.12;
+  return Math.max(0,Math.min(1,Math.max(mainRidge,spur1,spur2)+n));
+}
+function terrain_adv_coast(x,y){
+  // Coastal cliff — steep drop on one side, rolling hills on the other
+  const cliff=x<.35?x/.35:1;
+  const coastNoise=fbm(x*3+2,y*5+1,3)*.12;
+  const hills_d1=Math.sqrt((x-.6)*(x-.6)+(y-.3)*(y-.3));
+  const hills_d2=Math.sqrt((x-.75)*(x-.75)+(y-.7)*(y-.7));
+  const h1=Math.max(0,.4-hills_d1*1.5);
+  const h2=Math.max(0,.3-hills_d2*1.3);
+  const n=fbm(x*7+9,y*7+3,4)*.1;
+  return Math.max(0,Math.min(1,cliff*.6+Math.max(h1,h2)+coastNoise+n));
+}
+function terrain_adv_cirque(x,y){
+  // Large cirque with multiple levels (stepped terrain)
+  const dx=x-.45,dy=y-.5;
+  const d=Math.sqrt(dx*dx+dy*dy);
+  const angle=Math.atan2(dy,dx);
+  const open=(angle>-.8&&angle<.8)?2.2:1;
+  const raw=1-d*open*1.4;
+  const stepped=Math.floor(raw*5)/5+fbm(x*5+4,y*5+2,3)*.08;
+  const n=fbm(x*8+1,y*8+6,4)*.08;
+  return Math.max(0,Math.min(1,stepped+n));
+}
 
 const SHAPES={
-  peak:{fn:terrain_peak,name:'Berg',desc:'Ein einzelner Berg. Die Höhenlinien bilden Kreise — oben der Gipfel.'},
-  ridge:{fn:terrain_ridge,name:'Bergrücken',desc:'Ein langer Kamm. Die Linien laufen parallel zum Rücken.'},
-  valley:{fn:terrain_valley,name:'Tal',desc:'Ein Tal zwischen zwei Hängen. Unten in der Mitte ist es am tiefsten.'},
-  slope:{fn:terrain_slope,name:'Hang',desc:'Ein gleichmäßiger Hang. Links unten, rechts oben — alle Linien gleich weit.'},
-  plateau:{fn:terrain_plateau,name:'Hochebene',desc:'Oben flach (Linien weit), an den Seiten steil (Linien eng).'},
-  saddle:{fn:terrain_saddle,name:'Sattel',desc:'Zwei Kuppen mit einer Einsenkung dazwischen.'},
+  peak:{fn:terrain_peak,name:'Berg',desc:'Ein Berg mit einer kleinen Schulter. Die Höhenlinien bilden unregelmäßige Ringe.'},
+  ridge:{fn:terrain_ridge,name:'Bergrücken',desc:'Ein geschwungener Kamm. Die Linien folgen dem Rücken — nicht ganz gerade.'},
+  valley:{fn:terrain_valley,name:'Tal',desc:'Ein leicht gewundenes Tal. Die Linien biegen sich Richtung Talgrund.'},
+  slope:{fn:terrain_slope,name:'Hang',desc:'Ein Hang — links tief, rechts hoch. Die Abstände sind nicht überall gleich.'},
+  plateau:{fn:terrain_plateau,name:'Hochebene',desc:'Oben flach (Linien weit auseinander), an den Rändern steil (Linien eng).'},
+  saddle:{fn:terrain_saddle,name:'Sattel',desc:'Zwei Erhebungen mit einer Senke dazwischen — wie ein Pferdesattel.'},
+  spur:{fn:terrain_spur,name:'Geländenase',desc:'Ein Vorsprung, der vom Berg abfällt. Die Linien zeigen wie ein V talwärts.'},
+  cwm:{fn:terrain_cwm,name:'Kar / Mulde',desc:'Ein dreiseitig umschlossener Kessel — zu einer Seite offen. Die Linien bilden ein U.'},
+  ascent:{fn:terrain_ascent,name:'Steilstufe',desc:'Auf einer Seite steil (Linien eng), auf der anderen flach (Linien weit).'},
+  hills:{fn:terrain_hills,name:'Hügelgruppe',desc:'Zwei Hügel nebeneinander — jeder hat eigene geschlossene Höhenlinien.'},
+  adv_mountain:{fn:terrain_adv_mountain,name:'Bergmassiv',desc:'Mehrere Gipfel mit Verbindungsgraten — ein komplexes Gebirge.'},
+  adv_valley:{fn:terrain_adv_valley,name:'Tiefes Tal',desc:'Ein gewundenes Tal mit Seitenschluchten — viele enge Linien an den Hängen.'},
+  adv_plateau:{fn:terrain_adv_plateau,name:'Erosionsplateau',desc:'Eine Hochebene mit erodierten Rändern und einer kleinen Senke oben.'},
+  adv_ridge:{fn:terrain_adv_ridge,name:'Gratsystem',desc:'Ein Hauptgrat mit abzweigenden Nebenkämmen — typisch für Mittelgebirge.'},
+  adv_coast:{fn:terrain_adv_coast,name:'Steilküste',desc:'Steile Klippen auf einer Seite, sanfte Hügel dahinter.'},
+  adv_cirque:{fn:terrain_adv_cirque,name:'Stufenkar',desc:'Ein Kar mit Geländestufen — die Linien bilden verschachtelte U-Formen.'},
 };
 const SHAPE_KEYS=Object.keys(SHAPES);
 
@@ -110,18 +272,41 @@ function getHeight(shape,x,y,minAlt,maxAlt){
   return minAlt+v*(maxAlt-minAlt);
 }
 
-/* ━━━━━━ PATH GENERATION (snaking line A→B) ━━━━━━ */
+/* ━━━━━━ PATH GENERATION (smooth cubic spline A→B) ━━━━━━ */
+function genStraightPath(y,nPoints){
+  // Perfectly horizontal line — profile is a true cross-section
+  const pts=[];
+  for(let i=0;i<nPoints;i++){
+    const x=0.05+i/(nPoints-1)*0.9;
+    pts.push({x,y});
+  }
+  return pts;
+}
 function genPath(seed,nPoints){
   let s=seed;const rng=()=>{s=(s*16807)%2147483647;return s/2147483647;};
-  const pts=[{x:0.05,y:0.3+rng()*0.4}];
-  const endY=0.3+rng()*0.4;
+  const ctrl=[{x:0.05,y:0.25+rng()*0.5}];
+  const endY=0.25+rng()*0.5;
   for(let i=1;i<nPoints-1;i++){
     const t=i/(nPoints-1);
-    const baseY=pts[0].y*(1-t)+endY*t;
-    const wobble=(rng()-.5)*.35;
-    pts.push({x:t*.9+.05,y:Math.max(.08,Math.min(.92,baseY+wobble))});
+    const baseY=ctrl[0].y*(1-t)+endY*t;
+    const wobble=(rng()-.5)*.4;
+    ctrl.push({x:t*.9+.05,y:Math.max(.08,Math.min(.92,baseY+wobble))});
   }
-  pts.push({x:0.95,y:endY});
+  ctrl.push({x:0.95,y:endY});
+  // Catmull-Rom interpolation for smooth curve
+  const pts=[];const segments=40;
+  for(let i=0;i<ctrl.length-1;i++){
+    const p0=ctrl[Math.max(0,i-1)],p1=ctrl[i],p2=ctrl[i+1],p3=ctrl[Math.min(ctrl.length-1,i+2)];
+    const steps=(i===ctrl.length-2)?segments+1:segments;
+    for(let j=0;j<steps;j++){
+      const t=j/segments;const t2=t*t,t3=t2*t;
+      const x=0.5*((2*p1.x)+(-p0.x+p2.x)*t+(2*p0.x-5*p1.x+4*p2.x-p3.x)*t2+(-p0.x+3*p1.x-3*p2.x+p3.x)*t3);
+      const y=0.5*((2*p1.y)+(-p0.y+p2.y)*t+(2*p0.y-5*p1.y+4*p2.y-p3.y)*t2+(-p0.y+3*p1.y-3*p2.y+p3.y)*t3);
+      pts.push({x:Math.max(.02,Math.min(.98,x)),y:Math.max(.02,Math.min(.98,y))});
+    }
+  }
+  pts[0]=ctrl[0];
+  pts[pts.length-1]=ctrl[ctrl.length-1];
   return pts;
 }
 
@@ -280,11 +465,24 @@ function drawProfile(canvas,shape,minAlt,maxAlt,interval,path,opts){
 }
 
 /* ━━━━━━ APP STATE ━━━━━━ */
-let mode=0,quizScore=0,quizRound=0,learnIdx=0;
+let mode=0,quizScore=0,quizRound=0,learnIdx=0,advanced=false;
 const MAX_ROUNDS=6;
 const contentEl=document.getElementById('content');
 let rngSeed=Date.now()%100000;
 function rng(){rngSeed=(rngSeed*16807)%2147483647;return rngSeed/2147483647;}
+
+const BASIC_SHAPES=['peak','ridge','valley','slope','plateau','saddle','spur','cwm','ascent','hills'];
+const ADV_SHAPES=['adv_mountain','adv_valley','adv_plateau','adv_ridge','adv_coast','adv_cirque'];
+
+/* ━━━━━━ ADVANCED TOGGLE ━━━━━━ */
+const advBtn=document.getElementById('advToggle');
+advBtn.onclick=()=>{advanced=!advanced;advBtn.classList.toggle('on',advanced);advBtn.setAttribute('aria-checked',advanced);rerender();};
+function rerender(){
+  if(mode===0)renderLearn();
+  else if(mode===1){rngSeed=Date.now()%100000;renderDraw();}
+  else if(mode===2){quizScore=0;quizRound=0;rngSeed=Date.now()%100000;renderQuiz();}
+  else{quizScore=0;quizRound=0;rngSeed=Date.now()%100000;renderMassstab();}
+}
 
 /* ━━━━━━ MODE SWITCHING ━━━━━━ */
 [0,1,2,3].forEach(i=>document.getElementById('m'+i).onclick=()=>setMode(i));
@@ -298,18 +496,33 @@ function setMode(m){
 }
 
 /* ━━━━━━ LEARN MODE ━━━━━━ */
-const LEARN=[
-  {shape:'peak',minAlt:200,maxAlt:600,interval:100,pathSeed:42},
-  {shape:'ridge',minAlt:300,maxAlt:700,interval:100,pathSeed:77},
-  {shape:'valley',minAlt:100,maxAlt:500,interval:100,pathSeed:123},
-  {shape:'slope',minAlt:200,maxAlt:600,interval:100,pathSeed:55},
-  {shape:'plateau',minAlt:300,maxAlt:700,interval:100,pathSeed:99},
+const LEARN_BASIC=[
+  {shape:'peak',minAlt:200,maxAlt:600,interval:100,straightY:.5},
+  {shape:'valley',minAlt:100,maxAlt:500,interval:100,straightY:.5},
+  {shape:'ridge',minAlt:300,maxAlt:700,interval:100,straightY:.5},
+  {shape:'ascent',minAlt:200,maxAlt:600,interval:100,straightY:.5},
+  {shape:'cwm',minAlt:300,maxAlt:700,interval:100,straightY:.5},
+  {shape:'hills',minAlt:200,maxAlt:600,interval:100,straightY:.45},
+  {shape:'spur',minAlt:200,maxAlt:600,interval:100,pathSeed:44},
+  {shape:'slope',minAlt:200,maxAlt:600,interval:100,straightY:.5},
+  {shape:'plateau',minAlt:300,maxAlt:700,interval:100,straightY:.48},
+  {shape:'saddle',minAlt:200,maxAlt:600,interval:100,straightY:.5},
+];
+const LEARN_ADV=[
+  {shape:'adv_mountain',minAlt:400,maxAlt:1200,interval:50,straightY:.5},
+  {shape:'adv_valley',minAlt:200,maxAlt:800,interval:50,straightY:.5},
+  {shape:'adv_ridge',minAlt:500,maxAlt:1100,interval:50,straightY:.5},
+  {shape:'adv_plateau',minAlt:600,maxAlt:1000,interval:50,straightY:.48},
+  {shape:'adv_coast',minAlt:0,maxAlt:500,interval:50,straightY:.5},
+  {shape:'adv_cirque',minAlt:400,maxAlt:900,interval:50,straightY:.5},
 ];
 
 function renderLearn(){
-  const l=LEARN[learnIdx];
+  const list=advanced?LEARN_ADV:LEARN_BASIC;
+  if(learnIdx>=list.length)learnIdx=0;
+  const l=list[learnIdx];
   const s=SHAPES[l.shape];
-  const path=genPath(l.pathSeed,6);
+  const path=l.straightY!=null?genStraightPath(l.straightY,60):genPath(l.pathSeed,6);
 
   let html='<div class="card"><div class="card-title">'+s.name+'</div>';
   html+='<div class="card-desc">'+s.desc+'</div>';
@@ -328,36 +541,61 @@ function renderLearn(){
   drawContourMap(document.getElementById('cMap'),l.shape,l.minAlt,l.maxAlt,l.interval,path);
   drawProfile(document.getElementById('cProf'),l.shape,l.minAlt,l.maxAlt,l.interval,path);
 
-  document.getElementById('prevL').onclick=()=>{learnIdx=(learnIdx-1+LEARN.length)%LEARN.length;renderLearn();};
-  document.getElementById('nextL').onclick=()=>{learnIdx=(learnIdx+1)%LEARN.length;renderLearn();};
+  document.getElementById('prevL').onclick=()=>{const list=advanced?LEARN_ADV:LEARN_BASIC;learnIdx=(learnIdx-1+list.length)%list.length;renderLearn();};
+  document.getElementById('nextL').onclick=()=>{const list=advanced?LEARN_ADV:LEARN_BASIC;learnIdx=(learnIdx+1)%list.length;renderLearn();};
 }
 
 /* ━━━━━━ DRAW PROFILE MODE ━━━━━━ */
-function renderDraw(){
-  // Prefer terrains with closed contours for better exercises
-  const shapes=['peak','peak','plateau','saddle','peak','plateau'];
-  const shape=shapes[Math.floor(rng()*shapes.length)];
-  const minAlt=200,maxAlt=600,interval=50;
-  const path=genPath(Math.floor(rng()*99999),6);
-
-  // Sample N points along path for the exercise
-  const N=7;
-  const samples=[];
-  for(let i=0;i<N;i++){
-    const t=i/(N-1);
-    const pathLen=path.length-1;
-    const fi=t*pathLen;const idx=Math.min(pathLen-1,Math.floor(fi));const frac=fi-idx;
+// Helper: find point on path that sits exactly on a contour line
+function findContourPoint(shape,path,minAlt,maxAlt,interval,targetT){
+  // Search along the path near targetT for a spot where height snaps exactly to an interval
+  const searchRadius=0.08;
+  let bestDist=Infinity,bestPt=null,bestAlt=0;
+  const steps=80;
+  for(let s=0;s<=steps;s++){
+    const t=Math.max(0,Math.min(1,targetT-searchRadius+s/steps*searchRadius*2));
+    const fi=t*(path.length-1);const idx=Math.min(path.length-2,Math.floor(fi));const frac=fi-idx;
     const px=path[idx].x*(1-frac)+path[idx+1].x*frac;
     const py=path[idx].y*(1-frac)+path[idx+1].y*frac;
     const h=getHeight(shape,px,py,minAlt,maxAlt);
-    // Snap to nearest 50m
     const snapped=Math.round(h/interval)*interval;
-    samples.push({x:px,y:py,alt:Math.max(minAlt,Math.min(maxAlt,snapped)),t});
+    const dist=Math.abs(h-snapped);
+    if(dist<bestDist&&snapped>=minAlt&&snapped<=maxAlt){
+      bestDist=dist;bestPt={x:px,y:py,t};bestAlt=snapped;
+    }
   }
+  return {x:bestPt.x,y:bestPt.y,t:bestPt.t,alt:bestAlt};
+}
 
-  // Build HTML
+// Helper: generate sample points that lie on contour lines, with good steil/flach variance
+function genDrawSamples(shape,path,minAlt,maxAlt,interval,N){
+  const samples=[];
+  // Generate candidate positions spread along path
+  for(let i=0;i<N;i++){
+    const t=i/(N-1);
+    const pt=findContourPoint(shape,path,minAlt,maxAlt,interval,t);
+    samples.push(pt);
+  }
+  return samples;
+}
+
+function renderDraw(){
+  const drawType=rng()<0.5?'profile':'twopaths';
+  if(drawType==='twopaths'){renderTwoPaths();return;}
+
+  // Prefer terrains with clear steep/flat contrast
+  const goodForDraw=['peak','ridge','ascent','hills','slope','spur','adv_mountain','adv_valley','adv_ridge'];
+  const shapes=advanced?goodForDraw:goodForDraw.filter(s=>!s.startsWith('adv_'));
+  const shape=shapes[Math.floor(rng()*shapes.length)];
+  const minAlt=advanced?300:200,maxAlt=advanced?1100:600,interval=50;
+  const useStraight=rng()<0.3;
+  const path=useStraight?genStraightPath(.4+rng()*.2,60):genPath(Math.floor(rng()*99999),7);
+
+  const N=7;
+  const samples=genDrawSamples(shape,path,minAlt,maxAlt,interval,N);
+
   let html='<div class="card"><div class="card-title">Profil zeichnen</div>';
-  html+='<div class="card-desc">Schau dir die Höhenlinien an. Tippe dann im Profil für jeden Punkt die <b>richtige Höhe</b> an!</div>';
+  html+='<div class="card-desc">Schau dir die Höhenlinien an. Tippe dann im Profil für jeden Punkt die <b>richtige Höhe</b> an! Die Punkte liegen alle auf einer Höhenlinie.</div>';
   html+='<canvas id="dMap"></canvas></div>';
   html+='<div class="card" style="margin-top:8px;padding-bottom:4px;"><div class="card-title">Dein Profil</div>';
   html+='<div class="draw-grid" id="drawGrid"><canvas id="dProf"></canvas></div>';
@@ -366,21 +604,18 @@ function renderDraw(){
   html+='<div id="drawResult"></div>';
   contentEl.innerHTML=html;
 
-  // Draw contour map with numbered dots along path
   drawContourMap(document.getElementById('dMap'),shape,minAlt,maxAlt,interval,path);
-  // Add numbered markers on the map canvas
   const mapC=document.getElementById('dMap');
   const mapCtx=mapC.getContext('2d');
   samples.forEach((s,i)=>{
     const cx=s.x*mapC.width,cy=s.y*mapC.height;
     mapCtx.beginPath();mapCtx.arc(cx,cy,10,0,Math.PI*2);
     mapCtx.fillStyle='#fff';mapCtx.fill();
-    mapCtx.strokeStyle='var(--amber)';mapCtx.lineWidth=2.5;mapCtx.stroke();
+    mapCtx.strokeStyle='#c2762d';mapCtx.lineWidth=2.5;mapCtx.stroke();
     mapCtx.font='bold 11px -apple-system,sans-serif';mapCtx.fillStyle='#c2762d';
     mapCtx.textAlign='center';mapCtx.fillText(i+1,cx,cy+4);
   });
 
-  // Draw empty profile grid
   const profC=document.getElementById('dProf');
   const W=300,H=180;profC.width=W;profC.height=H;
   const ctx=profC.getContext('2d');
@@ -389,7 +624,6 @@ function renderDraw(){
 
   function drawGrid(){
     ctx.clearRect(0,0,W,H);ctx.fillStyle='#f9f7f1';ctx.fillRect(0,0,W,H);
-    // Horizontal grid lines every 50m
     const altLevels=[];for(let a=minAlt;a<=maxAlt;a+=interval)altLevels.push(a);
     ctx.font='10px -apple-system,sans-serif';ctx.textAlign='right';
     altLevels.forEach(a=>{
@@ -400,7 +634,6 @@ function renderDraw(){
       ctx.fillStyle=major?'#777':'#aaa';
       ctx.fillText(a+'m',pad.l-4,y+3);
     });
-    // Vertical lines for each point
     ctx.strokeStyle='#e8e8e8';ctx.lineWidth=1;
     samples.forEach((s,i)=>{
       const x=pad.l+s.t*pw;
@@ -408,7 +641,6 @@ function renderDraw(){
       ctx.fillStyle='#aaa';ctx.font='9px -apple-system,sans-serif';ctx.textAlign='center';
       ctx.fillText(i+1,x,H-10);
     });
-    // Axes
     ctx.strokeStyle='#999';ctx.lineWidth=1.2;
     ctx.beginPath();ctx.moveTo(pad.l,pad.t);ctx.lineTo(pad.l,pad.t+ph);ctx.lineTo(pad.l+pw,pad.t+ph);ctx.stroke();
     ctx.fillStyle='#c2762d';ctx.font='bold 11px Georgia,serif';ctx.textAlign='center';
@@ -416,32 +648,27 @@ function renderDraw(){
   }
   drawGrid();
 
-  // Interactive state
-  let placed=[];let currentIdx=0;let phase='place'; // 'place', 'steep', 'flat', 'done'
+  let placed=[];let currentIdx=0;let phase='place';
 
   function altToY(alt){return pad.t+ph*(1-(alt-minAlt)/(maxAlt-minAlt));}
   function yToAlt(y){const a=minAlt+(1-(y-pad.t)/ph)*(maxAlt-minAlt);return Math.round(a/interval)*interval;}
 
   function redrawProfile(){
     drawGrid();
-    // Draw placed points and connecting line
     if(placed.length>1){
       ctx.beginPath();ctx.strokeStyle='#5a3e15';ctx.lineWidth=2.5;
       placed.forEach((p,i)=>{const x=pad.l+samples[i].t*pw,y=altToY(p);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
       ctx.stroke();
-      // Fill below
       ctx.lineTo(pad.l+samples[placed.length-1].t*pw,pad.t+ph);
       ctx.lineTo(pad.l+samples[0].t*pw,pad.t+ph);ctx.closePath();
       ctx.fillStyle='rgba(194,118,45,.08)';ctx.fill();
     }
-    // Dots
     placed.forEach((alt,i)=>{
       const x=pad.l+samples[i].t*pw,y=altToY(alt);
       ctx.beginPath();ctx.arc(x,y,6,0,Math.PI*2);
       ctx.fillStyle='#c2762d';ctx.fill();
       ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
     });
-    // Highlight current
     if(phase==='place'&&currentIdx<N){
       const x=pad.l+samples[currentIdx].t*pw;
       ctx.strokeStyle='rgba(194,118,45,.4)';ctx.lineWidth=1.5;ctx.setLineDash([4,3]);
@@ -449,7 +676,6 @@ function renderDraw(){
     }
   }
 
-  // Click handler on profile canvas
   const grid=document.getElementById('drawGrid');
   grid.style.cursor='pointer';
   const undoBtn=document.getElementById('undoBtn');
@@ -483,17 +709,13 @@ function renderDraw(){
   function finishPlacing(){
     phase='review';
     grid.style.cursor='default';
-    // Show correct profile overlaid
     drawGrid();
-    // Draw user's line
     ctx.beginPath();ctx.strokeStyle='#c2762d';ctx.lineWidth=2.5;ctx.setLineDash([]);
     placed.forEach((alt,i)=>{const x=pad.l+samples[i].t*pw,y=altToY(alt);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
     ctx.stroke();
-    // Draw correct line
     ctx.beginPath();ctx.strokeStyle='var(--right)';ctx.lineWidth=2;ctx.setLineDash([5,3]);
     samples.forEach((s,i)=>{const x=pad.l+s.t*pw,y=altToY(s.alt);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
     ctx.stroke();ctx.setLineDash([]);
-    // Dots colored by correctness
     placed.forEach((alt,i)=>{
       const x=pad.l+samples[i].t*pw,y=altToY(alt);
       const correct=Math.abs(alt-samples[i].alt)<=interval*.6;
@@ -501,18 +723,14 @@ function renderDraw(){
       ctx.fillStyle=correct?'var(--right)':'var(--wrong)';ctx.fill();
       ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
     });
-    // Score
     const score=placed.filter((a,i)=>Math.abs(a-samples[i].alt)<=interval*.6).length;
     let hint='<b>'+score+' / '+N+' Punkte richtig!</b> ';
     hint+='<span style="color:var(--right)">Grün = dein Profil</span> · <span style="color:var(--right);opacity:.6">gestrichelt = richtige Lösung</span>';
     document.getElementById('drawHint').innerHTML=hint;
-
-    // Now ask: where is it steepest / flattest?
     showSteepQuestion();
   }
 
   function showSteepQuestion(){
-    // Find steepest and flattest segments
     let maxSlope=0,maxIdx=0,minSlope=Infinity,minIdx=0;
     for(let i=0;i<samples.length-1;i++){
       const dAlt=Math.abs(samples[i+1].alt-samples[i].alt);
@@ -528,8 +746,7 @@ function renderDraw(){
     for(let i=0;i<N-1;i++){
       html+='<button class="steep-btn" data-i="'+i+'">'+(i+1)+'→'+(i+2)+'</button>';
     }
-    html+='</div><div id="steepFb" style="margin-top:8px;"></div>';
-    html+='</div>';
+    html+='</div><div id="steepFb" style="margin-top:8px;"></div></div>';
     document.getElementById('drawResult').innerHTML=html;
 
     document.querySelectorAll('#steepRow .steep-btn').forEach(b=>{
@@ -555,8 +772,7 @@ function renderDraw(){
     for(let i=0;i<N-1;i++){
       html+='<button class="steep-btn" data-i="'+i+'">'+(i+1)+'→'+(i+2)+'</button>';
     }
-    html+='</div><div id="flatFb" style="margin-top:8px;"></div>';
-    html+='</div>';
+    html+='</div><div id="flatFb" style="margin-top:8px;"></div></div>';
     document.getElementById('drawResult').innerHTML=html;
 
     document.querySelectorAll('#flatRow .steep-btn').forEach(b=>{
@@ -575,17 +791,284 @@ function renderDraw(){
   }
 }
 
+/* ━━━━━━ TWO PATHS COMPARISON MODE ━━━━━━ */
+function renderTwoPaths(){
+  const shapes=advanced?[...BASIC_SHAPES,...ADV_SHAPES]:BASIC_SHAPES;
+  // Use terrains with clear elevation variance
+  const goodShapes=['peak','ridge','valley','ascent','hills','adv_mountain','adv_valley','adv_ridge'];
+  const pool=goodShapes.filter(s=>shapes.includes(s));
+  const shape=pool[Math.floor(rng()*pool.length)];
+  const minAlt=advanced?300:200,maxAlt=advanced?1100:600,interval=50;
+
+  // Generate two paths sharing start/end: one short+steep, one long+relaxed
+  const seed1=Math.floor(rng()*99999);
+  const baseCtrl=5;
+  // First path: fewer control points (more direct)
+  const pathShort=genPath(seed1,baseCtrl);
+  // Second path: offset seed, more control points (longer, more winding)
+  const pathLong=(function(){
+    // Share start/end with pathShort, but take a different route
+    let s=seed1+7777;const lr=()=>{s=(s*16807)%2147483647;return s/2147483647;};
+    const startPt=pathShort[0],endPt=pathShort[pathShort.length-1];
+    const ctrl=[startPt];
+    const nMid=7;
+    for(let i=1;i<=nMid;i++){
+      const t=i/(nMid+1);
+      const baseY=startPt.y*(1-t)+endPt.y*t;
+      const offset=(lr()-.5)*.5;
+      ctrl.push({x:t*.9+.05,y:Math.max(.08,Math.min(.92,baseY+offset))});
+    }
+    ctrl.push(endPt);
+    // Catmull-Rom
+    const pts=[];const segments=40;
+    for(let i=0;i<ctrl.length-1;i++){
+      const p0=ctrl[Math.max(0,i-1)],p1=ctrl[i],p2=ctrl[i+1],p3=ctrl[Math.min(ctrl.length-1,i+2)];
+      const steps=(i===ctrl.length-2)?segments+1:segments;
+      for(let j=0;j<steps;j++){
+        const t=j/segments;const t2=t*t,t3=t2*t;
+        const x=0.5*((2*p1.x)+(-p0.x+p2.x)*t+(2*p0.x-5*p1.x+4*p2.x-p3.x)*t2+(-p0.x+3*p1.x-3*p2.x+p3.x)*t3);
+        const y=0.5*((2*p1.y)+(-p0.y+p2.y)*t+(2*p0.y-5*p1.y+4*p2.y-p3.y)*t2+(-p0.y+3*p1.y-3*p2.y+p3.y)*t3);
+        pts.push({x:Math.max(.02,Math.min(.98,x)),y:Math.max(.02,Math.min(.98,y))});
+      }
+    }
+    pts[pts.length-1]=endPt;
+    return pts;
+  })();
+
+  // Compute total ascent for each path
+  function computeStats(p,sh){
+    const nSamp=30;const heights=[];
+    for(let i=0;i<nSamp;i++){
+      const t=i/(nSamp-1);const fi=t*(p.length-1);
+      const idx=Math.min(p.length-2,Math.floor(fi));const frac=fi-idx;
+      const px=p[idx].x*(1-frac)+p[idx+1].x*frac;
+      const py=p[idx].y*(1-frac)+p[idx+1].y*frac;
+      heights.push(getHeight(sh,px,py,minAlt,maxAlt));
+    }
+    let totalAscent=0,totalDescent=0,maxSl=0,minSl=Infinity;
+    const segSlopes=[];
+    for(let i=0;i<heights.length-1;i++){
+      const dh=heights[i+1]-heights[i];
+      if(dh>0)totalAscent+=dh;else totalDescent-=dh;
+      const sl=Math.abs(dh);
+      segSlopes.push(sl);
+      if(sl>maxSl)maxSl=sl;
+      if(sl<minSl)minSl=sl;
+    }
+    // Compute path length in map units
+    let pathLen=0;
+    for(let i=0;i<p.length-1;i++){
+      const dx=p[i+1].x-p[i].x,dy=p[i+1].y-p[i].y;
+      pathLen+=Math.sqrt(dx*dx+dy*dy);
+    }
+    return {heights,totalAscent,totalDescent,maxSlope:maxSl,minSlope:minSl,pathLen,segSlopes};
+  }
+
+  let statsA=computeStats(pathShort,shape);
+  let statsB=computeStats(pathLong,shape);
+
+  // Ensure A is the steeper one (more total ascent per path length), B is gentler
+  let pA=pathShort,pB=pathLong;
+  const steepnessA=(statsA.totalAscent+statsA.totalDescent)/Math.max(.01,statsA.pathLen);
+  const steepnessB=(statsB.totalAscent+statsB.totalDescent)/Math.max(.01,statsB.pathLen);
+  if(steepnessA<steepnessB){
+    [pA,pB]=[pB,pA];[statsA,statsB]=[statsB,statsA];
+  }
+
+  // Sample points for segment questions (5 per path)
+  const N=5;
+  function samplePath(p,sh){
+    const pts=[];
+    for(let i=0;i<N;i++){
+      const t=i/(N-1);
+      const fi=t*(p.length-1);const idx=Math.min(p.length-2,Math.floor(fi));const frac=fi-idx;
+      const px=p[idx].x*(1-frac)+p[idx+1].x*frac;
+      const py=p[idx].y*(1-frac)+p[idx+1].y*frac;
+      const h=getHeight(sh,px,py,minAlt,maxAlt);
+      const snapped=Math.round(h/interval)*interval;
+      pts.push({x:px,y:py,alt:Math.max(minAlt,Math.min(maxAlt,snapped)),t});
+    }
+    return pts;
+  }
+  const samplesA=samplePath(pA,shape);
+  const samplesB=samplePath(pB,shape);
+
+  // Randomly assign colors
+  const colorA='#c2762d',colorB='#4a7fb5';
+  const nameA='Orange',nameB='Blau';
+
+  let html='<div class="card"><div class="card-title">Zwei Wege vergleichen</div>';
+  html+='<div class="card-desc">Zwei Wanderer gehen von A nach B — aber auf verschiedenen Wegen. Wer hat den <b>entspannteren</b> Weg, wer den <b>anstrengenderen</b>?</div>';
+  html+='<canvas id="dMap2"></canvas>';
+  html+='<p style="font-size:11px;color:var(--ink-soft);margin:6px 0 0;text-align:center;"><span style="color:'+colorA+';font-weight:700;">●</span> Weg '+nameA+' &nbsp; <span style="color:'+colorB+';font-weight:700;">●</span> Weg '+nameB+'</p></div>';
+  html+='<div id="tp-questions"></div>';
+  contentEl.innerHTML=html;
+
+  // Draw map with both paths
+  const mapC=document.getElementById('dMap2');
+  drawContourMap(mapC,shape,minAlt,maxAlt,interval,null);
+  const mapCtx=mapC.getContext('2d');
+  const W=mapC.width,H=mapC.height;
+
+  // Draw path A
+  mapCtx.setLineDash([]);mapCtx.strokeStyle=colorA;mapCtx.lineWidth=3;
+  mapCtx.beginPath();
+  pA.forEach((p,i)=>{const px=p.x*W,py=p.y*H;i===0?mapCtx.moveTo(px,py):mapCtx.lineTo(px,py);});
+  mapCtx.stroke();
+  // Draw path B
+  mapCtx.strokeStyle=colorB;mapCtx.lineWidth=3;mapCtx.setLineDash([8,5]);
+  mapCtx.beginPath();
+  pB.forEach((p,i)=>{const px=p.x*W,py=p.y*H;i===0?mapCtx.moveTo(px,py):mapCtx.lineTo(px,py);});
+  mapCtx.stroke();mapCtx.setLineDash([]);
+
+  // A and B labels at shared start/end
+  mapCtx.font='bold 14px Georgia,serif';mapCtx.textAlign='center';
+  mapCtx.fillStyle='#333';
+  mapCtx.fillText('A',pA[0].x*W,pA[0].y*H-12);
+  mapCtx.fillText('B',pA[pA.length-1].x*W,pA[pA.length-1].y*H-12);
+
+  // Step 1: Which is more relaxed?
+  let step=0;
+  const qDiv=document.getElementById('tp-questions');
+
+  function showStep1(){
+    step=1;
+    let h='<div class="card" style="margin-top:8px;"><div class="card-title">Frage 1</div>';
+    h+='<div class="quiz-q">Welcher Weg ist <b>entspannter</b> (weniger steil)?</div>';
+    h+='<div class="seg-row">';
+    h+='<button class="steep-btn" id="tpA" style="border-color:'+colorA+'">Weg '+nameA+'</button>';
+    h+='<button class="steep-btn" id="tpB" style="border-color:'+colorB+'">Weg '+nameB+'</button>';
+    h+='</div><div id="tpFb1" style="margin-top:8px;"></div></div>';
+    qDiv.innerHTML=h;
+    // B is the relaxed one
+    document.getElementById('tpA').onclick=()=>answerStep1('A');
+    document.getElementById('tpB').onclick=()=>answerStep1('B');
+  }
+
+  function answerStep1(pick){
+    const correct='B';
+    document.getElementById('tpA').disabled=true;
+    document.getElementById('tpB').disabled=true;
+    if(pick===correct){
+      document.getElementById('tpB').classList.add('correct');
+    }else{
+      document.getElementById('tpA').classList.add('incorrect');
+      document.getElementById('tpB').classList.add('correct');
+    }
+    const ok=pick===correct;
+    document.getElementById('tpFb1').innerHTML='<p class="result-hint">'+(ok?'✓ Richtig! Weg '+nameB+' verläuft flacher — die Höhenlinien liegen weiter auseinander.':'✗ Weg '+nameB+' ist entspannter — er quert weniger Höhenlinien auf engem Raum.')+'</p><button class="btn" id="tpNext1">Weiter →</button>';
+    document.getElementById('tpNext1').onclick=showStep2;
+  }
+
+  function showStep2(){
+    step=2;
+    let h='<div class="card" style="margin-top:8px;"><div class="card-title">Frage 2</div>';
+    h+='<div class="quiz-q">Welcher Weg ist <b>anstrengender</b> (steiler)?</div>';
+    h+='<div class="seg-row">';
+    h+='<button class="steep-btn" id="tp2A" style="border-color:'+colorA+'">Weg '+nameA+'</button>';
+    h+='<button class="steep-btn" id="tp2B" style="border-color:'+colorB+'">Weg '+nameB+'</button>';
+    h+='</div><div id="tpFb2" style="margin-top:8px;"></div></div>';
+    qDiv.innerHTML=h;
+    document.getElementById('tp2A').onclick=()=>answerStep2('A');
+    document.getElementById('tp2B').onclick=()=>answerStep2('B');
+  }
+
+  function answerStep2(pick){
+    const correct='A';
+    document.getElementById('tp2A').disabled=true;
+    document.getElementById('tp2B').disabled=true;
+    if(pick===correct){
+      document.getElementById('tp2A').classList.add('correct');
+    }else{
+      document.getElementById('tp2B').classList.add('incorrect');
+      document.getElementById('tp2A').classList.add('correct');
+    }
+    const ok=pick===correct;
+    document.getElementById('tpFb2').innerHTML='<p class="result-hint">'+(ok?'✓ Richtig! Weg '+nameA+' ist steiler — er geht direkt durch enge Höhenlinien.':'✗ Weg '+nameA+' ist anstrengender — die Höhenlinien liegen dort viel enger beieinander.')+'</p><button class="btn" id="tpNext2">Weiter: Steilste Abschnitte →</button>';
+    document.getElementById('tpNext2').onclick=showStep3;
+  }
+
+  function showStep3(){
+    // Find steepest segment of path A
+    let maxSl=0,maxIdx=0;
+    for(let i=0;i<samplesA.length-1;i++){
+      const sl=Math.abs(samplesA[i+1].alt-samplesA[i].alt);
+      if(sl>maxSl){maxSl=sl;maxIdx=i;}
+    }
+    step=3;
+    let h='<div class="card" style="margin-top:8px;"><div class="card-title">Frage 3</div>';
+    h+='<div class="quiz-q">Wo ist <b>Weg '+nameA+'</b> am <b>steilsten</b>?</div>';
+    h+='<canvas id="profA" style="margin-bottom:6px;"></canvas>';
+    h+='<div class="seg-row" id="steepRowA">';
+    for(let i=0;i<N-1;i++) h+='<button class="steep-btn" data-i="'+i+'">'+(i+1)+'→'+(i+2)+'</button>';
+    h+='</div><div id="tpFb3" style="margin-top:8px;"></div></div>';
+    qDiv.innerHTML=h;
+
+    // Draw profile for path A
+    drawProfile(document.getElementById('profA'),shape,minAlt,maxAlt,interval,pA);
+
+    document.querySelectorAll('#steepRowA .steep-btn').forEach(b=>{
+      b.onclick=()=>{
+        const pick=parseInt(b.dataset.i);
+        document.querySelectorAll('#steepRowA .steep-btn').forEach(x=>{
+          x.disabled=true;
+          if(parseInt(x.dataset.i)===maxIdx)x.classList.add('correct');
+          else if(x===b&&pick!==maxIdx)x.classList.add('incorrect');
+        });
+        const ok=pick===maxIdx;
+        document.getElementById('tpFb3').innerHTML='<p class="result-hint">'+(ok?'✓ Richtig!':'✗ Am steilsten ist Abschnitt <b>'+(maxIdx+1)+'→'+(maxIdx+2)+'</b>.')+'</p><button class="btn" id="tpNext3">Weiter: Flachster Abschnitt Weg '+nameB+' →</button>';
+        document.getElementById('tpNext3').onclick=showStep4;
+      };
+    });
+  }
+
+  function showStep4(){
+    // Find flattest segment of path B
+    let minSl=Infinity,minIdx=0;
+    for(let i=0;i<samplesB.length-1;i++){
+      const sl=Math.abs(samplesB[i+1].alt-samplesB[i].alt);
+      if(sl<minSl){minSl=sl;minIdx=i;}
+    }
+    step=4;
+    let h='<div class="card" style="margin-top:8px;"><div class="card-title">Frage 4</div>';
+    h+='<div class="quiz-q">Wo ist <b>Weg '+nameB+'</b> am <b>flachsten</b>?</div>';
+    h+='<canvas id="profB" style="margin-bottom:6px;"></canvas>';
+    h+='<div class="seg-row" id="flatRowB">';
+    for(let i=0;i<N-1;i++) h+='<button class="steep-btn" data-i="'+i+'">'+(i+1)+'→'+(i+2)+'</button>';
+    h+='</div><div id="tpFb4" style="margin-top:8px;"></div></div>';
+    qDiv.innerHTML=h;
+
+    drawProfile(document.getElementById('profB'),shape,minAlt,maxAlt,interval,pB);
+
+    document.querySelectorAll('#flatRowB .steep-btn').forEach(b=>{
+      b.onclick=()=>{
+        const pick=parseInt(b.dataset.i);
+        document.querySelectorAll('#flatRowB .steep-btn').forEach(x=>{
+          x.disabled=true;
+          if(parseInt(x.dataset.i)===minIdx)x.classList.add('correct');
+          else if(x===b&&pick!==minIdx)x.classList.add('incorrect');
+        });
+        const ok=pick===minIdx;
+        document.getElementById('tpFb4').innerHTML='<p class="result-hint">'+(ok?'✓ Richtig! Dort sind die Höhenlinien am weitesten auseinander.':'✗ Am flachsten ist Abschnitt <b>'+(minIdx+1)+'→'+(minIdx+2)+'</b>.')+'</p><button class="btn" id="tpDone">Neue Aufgabe →</button>';
+        document.getElementById('tpDone').onclick=()=>{rngSeed=Date.now()%100000;renderDraw();};
+      };
+    });
+  }
+
+  showStep1();
+}
+
 /* ━━━━━━ PROFILE QUIZ ━━━━━━ */
 function renderQuiz(){
   if(quizRound>=MAX_ROUNDS){renderDone(()=>{quizScore=0;quizRound=0;rngSeed=Date.now()%100000;renderQuiz();});return;}
 
-  // Pick 4 different shapes
-  const pool=[...SHAPE_KEYS];
+  // Pick 4 different shapes from appropriate pool
+  const pool=advanced?[...BASIC_SHAPES,...ADV_SHAPES]:[...BASIC_SHAPES];
   for(let i=pool.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
   const chosen=pool.slice(0,4);
   const correct=Math.floor(rng()*4);
   const paths=chosen.map((_,i)=>genPath(Math.floor(rng()*99999),5+Math.floor(rng()*3)));
-  const minAlt=200,maxAlt=600,interval=100;
+  const minAlt=advanced?300:200,maxAlt=advanced?1100:600,interval=advanced?50:100;
 
   let html='<div class="quiz-card"><div class="card-title">Frage '+(quizRound+1)+' / '+MAX_ROUNDS+'</div>';
   html+='<div class="quiz-q">Welche Höhenlinienkarte passt zu diesem Profil?</div>';
