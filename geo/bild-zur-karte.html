@@ -124,44 +124,6 @@ const LANDMARKS_POOL=[
   {name:'Gymnasium',symbol:null,abbr:'Gy',colorId:'rot'},
 ];
 
-const STREET_MAPS=[
-  {name:'Weststadt',
-   cols:4,rows:4,
-   hStreets:['Bismarckstraße','Hasenbergstraße','Seidenstraße','Vogelsangstraße','Schwabstraße'],
-   vStreets:['Ludwigstraße','Bebelstraße','Johannesstraße','Rosenbergstraße','Elisabethenstraße'],
-   landmarks:[
-     {name:'Bismarckplatz',row:0,col:1,abbr:'Bp'},
-     {name:'Schule',row:1,col:0,abbr:'S'},
-     {name:'Kirche',row:1,col:3,abbr:'K'},
-     {name:'Park',row:2,col:2,abbr:'P'},
-     {name:'Rathaus',row:3,col:1,abbr:'R'},
-     {name:'Brunnen',row:0,col:3,abbr:'Br'},
-   ]},
-  {name:'Mitte',
-   cols:4,rows:4,
-   hStreets:['Königstraße','Friedrichstraße','Calwer Straße','Eberhardstraße','Marktstraße'],
-   vStreets:['Schulstraße','Kirchstraße','Marktplatz','Leonhardstraße','Gymnasiumstraße'],
-   landmarks:[
-     {name:'Rathaus',row:0,col:2,abbr:'R'},
-     {name:'Kirche',row:1,col:1,abbr:'K'},
-     {name:'Gymnasium',row:2,col:3,abbr:'Gy'},
-     {name:'Denkmal',row:2,col:0,abbr:'D'},
-     {name:'See',row:3,col:2,abbr:'Se'},
-     {name:'Bücherei',row:0,col:0,abbr:'Bü'},
-   ]},
-  {name:'Süd',
-   cols:4,rows:4,
-   hStreets:['Filderstraße','Tübinger Straße','Böblinger Straße','Möhringer Straße','Heslacher Straße'],
-   vStreets:['Kolbstraße','Zellerstraße','Cottastraße','Liststraße','Römerstraße'],
-   landmarks:[
-     {name:'Klinikum',row:0,col:1,abbr:'Kl'},
-     {name:'Spielplatz',row:1,col:3,abbr:'Sp'},
-     {name:'Schule',row:2,col:0,abbr:'S'},
-     {name:'Supermarkt',row:2,col:2,abbr:'Su'},
-     {name:'Feuerwehr',row:3,col:3,abbr:'Fw'},
-     {name:'Park',row:1,col:0,abbr:'P'},
-   ]},
-];
 
 /* ━━━━━━ TOGGLE & MODES ━━━━━━ */
 const advBtn=document.getElementById('advToggle');
@@ -304,115 +266,8 @@ function drawInteractiveGrid(){
 /* ━━━━━━ WEG EXAMPLE (Learn page 3) ━━━━━━ */
 function drawWegExample(){
   const c=document.getElementById('cWegEx');
-  const mapData=STREET_MAPS[0];
-  drawStreetMapCanvas(c,mapData,[{r:0,c:0},{r:1,c:0},{r:1,c:1},{r:2,c:1},{r:2,c:2}],true);
-}
-
-/* ━━━━━━ STREET MAP CANVAS RENDERER ━━━━━━ */
-function drawStreetMapCanvas(canvas,mapData,route,showRoute){
-  const W=300,H=300;canvas.width=W;canvas.height=H;
-  const ctx=canvas.getContext('2d');
-  const pad=28,cols=mapData.cols,rows=mapData.rows;
-  const cw=(W-pad*2)/cols,ch=(H-pad*2)/rows;
-
-  ctx.fillStyle='#f0ede5';ctx.fillRect(0,0,W,H);
-
-  // Draw building blocks between streets
-  for(let r=0;r<rows;r++)for(let col=0;col<cols;col++){
-    const x=pad+col*cw+4,y=pad+r*ch+4;
-    const bw=cw-8,bh=ch-8;
-    // Determine block color based on what landmark is here
-    const lm=mapData.landmarks.find(l=>l.row===r&&l.col===col);
-    let blockColor='#e8c8b0';
-    if(lm){
-      const poolItem=LANDMARKS_POOL.find(p=>p.name===lm.name||p.abbr===lm.abbr);
-      if(poolItem){
-        const mc=MAP_COLORS.find(c=>c.id===poolItem.colorId);
-        if(mc)blockColor=mc.color;
-      }
-    }
-    ctx.fillStyle=blockColor;
-    ctx.fillRect(x,y,bw,bh);
-    ctx.strokeStyle='rgba(0,0,0,.1)';ctx.lineWidth=0.5;
-    ctx.strokeRect(x,y,bw,bh);
-
-    // Draw park trees
-    if(lm&&(lm.name==='Park'||lm.name==='Spielplatz')){
-      for(let t=0;t<5;t++){
-        const tx=x+8+((t*17)%Math.floor(bw-12));
-        const ty=y+8+((t*13)%Math.floor(bh-12));
-        ctx.beginPath();ctx.arc(tx,ty,4,0,Math.PI*2);
-        ctx.fillStyle='#5a9e4a';ctx.fill();
-      }
-    }
-  }
-
-  // Draw streets (lines at grid positions)
-  ctx.strokeStyle='#ccc';ctx.lineWidth=3;
-  for(let r=0;r<=rows;r++){
-    const y=pad+r*ch;
-    ctx.beginPath();ctx.moveTo(pad,y);ctx.lineTo(W-pad,y);ctx.stroke();
-  }
-  for(let col=0;col<=cols;col++){
-    const x=pad+col*cw;
-    ctx.beginPath();ctx.moveTo(x,pad);ctx.lineTo(x,H-pad);ctx.stroke();
-  }
-
-  // Street names along horizontal streets
-  ctx.font='8px -apple-system,sans-serif';ctx.fillStyle='#666';ctx.textAlign='center';ctx.textBaseline='bottom';
-  for(let r=0;r<=rows&&r<mapData.hStreets.length;r++){
-    const y=pad+r*ch-2;
-    ctx.fillText(mapData.hStreets[r],(W)/2,y);
-  }
-  // Vertical street names
-  ctx.save();
-  for(let col=0;col<=cols&&col<mapData.vStreets.length;col++){
-    const x=pad+col*cw+2;
-    ctx.save();ctx.translate(x,H/2);ctx.rotate(-Math.PI/2);
-    ctx.textAlign='center';ctx.textBaseline='top';
-    ctx.fillText(mapData.vStreets[col],0,0);
-    ctx.restore();
-  }
-  ctx.restore();
-
-  // Draw landmarks
-  ctx.font='bold 10px -apple-system,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
-  mapData.landmarks.forEach(lm=>{
-    const x=pad+lm.col*cw+cw/2,y=pad+lm.row*ch+ch/2;
-    ctx.fillStyle='#fff';
-    ctx.beginPath();ctx.arc(x,y,11,0,Math.PI*2);ctx.fill();
-    ctx.strokeStyle='var(--amber)';ctx.lineWidth=2;ctx.stroke();
-    ctx.fillStyle='#333';ctx.fillText(lm.abbr,x,y);
-  });
-
-  // Draw route if provided
-  if(showRoute&&route&&route.length>1){
-    ctx.setLineDash([6,4]);ctx.strokeStyle='#c2762d';ctx.lineWidth=3;
-    ctx.beginPath();
-    route.forEach((p,i)=>{
-      const x=pad+p.c*cw,y=pad+p.r*ch;
-      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
-    });
-    ctx.stroke();ctx.setLineDash([]);
-    // A and B
-    const A=route[0],B=route[route.length-1];
-    ctx.font='bold 14px Georgia,serif';ctx.fillStyle='#c2762d';ctx.textAlign='center';
-    ctx.fillText('A',pad+A.c*cw,pad+A.r*ch-14);
-    ctx.fillText('B',pad+B.c*cw,pad+B.r*ch-14);
-    ctx.fillStyle='#c2762d';
-    ctx.beginPath();ctx.arc(pad+A.c*cw,pad+A.r*ch,5,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.arc(pad+B.c*cw,pad+B.r*ch,5,0,Math.PI*2);ctx.fill();
-  }
-
-  // Legend at bottom
-  ctx.font='9px -apple-system,sans-serif';ctx.fillStyle='#888';ctx.textAlign='left';
-  let lx=5,ly=H-4;
-  mapData.landmarks.forEach((lm,i)=>{
-    if(i>0)lx+=4;
-    const txt=lm.abbr+'='+lm.name;
-    ctx.fillText(txt,lx,ly);
-    lx+=ctx.measureText(txt).width;
-  });
+  const mapData=WEGE_MAPS[0];
+  drawGraphStreetMap(c,mapData,[0,1,4,8,9],true);
 }
 
 /* ━━━━━━ SYMBOLE QUIZ ━━━━━━ */
@@ -619,122 +474,301 @@ function renderPlanquadrat(){
   }
 }
 
-/* ━━━━━━ WEGE QUIZ ━━━━━━ */
-function getDirection(from,to,prev){
-  // Returns direction string based on previous, current, next intersection
-  const dx=to.c-from.c,dy=to.r-from.r;
-  if(!prev)return dx>0?'rechts':'links';
-  const pdx=from.c-prev.c,pdy=from.r-prev.r;
-  // Cross product to determine turn
-  const cross=pdx*dy-pdy*dx;
-  if(cross===0)return 'geradeaus';
+/* ━━━━━━ WEGE QUIZ — Graph-based street network ━━━━━━ */
+// Street maps defined as graphs: nodes (intersections) + edges (street segments)
+// Nodes have pixel positions (x,y in 0-1 normalized space)
+// Edges connect node indices and carry a street name
+const WEGE_MAPS=[
+  {name:'Weststadt',
+   nodes:[
+     {x:.08,y:.10,lm:null},        // 0: top-left
+     {x:.45,y:.10,lm:null},        // 1: top-mid
+     {x:.85,y:.10,lm:'Brunnen'},   // 2: top-right
+     {x:.08,y:.38,lm:'Schule'},    // 3: left
+     {x:.35,y:.38,lm:null},        // 4: T-junction
+     {x:.65,y:.32,lm:null},        // 5: offset junction
+     {x:.85,y:.38,lm:'Kirche'},    // 6: right
+     {x:.08,y:.65,lm:null},        // 7: lower-left
+     {x:.45,y:.60,lm:'Rathaus'},   // 8: center
+     {x:.75,y:.65,lm:null},        // 9: lower-right junction
+     {x:.08,y:.90,lm:null},        // 10: bottom-left
+     {x:.45,y:.90,lm:'Park'},      // 11: bottom-mid
+     {x:.85,y:.90,lm:'Gymnasium'}, // 12: bottom-right
+   ],
+   edges:[
+     [0,1,'Bismarckstraße'],[1,2,'Bismarckstraße'],
+     [0,3,'Ludwigstraße'],[3,7,'Ludwigstraße'],[7,10,'Ludwigstraße'],
+     [1,4,'Bebelstraße'],[4,8,'Bebelstraße'],[8,11,'Bebelstraße'],
+     [3,4,'Hasenbergstraße'],[4,5,'Hasenbergstraße'],[5,6,'Hasenbergstraße'],
+     [2,6,'Rosenbergstraße'],[6,9,'Rosenbergstraße'],[9,12,'Rosenbergstraße'],
+     [7,8,'Seidenstraße'],[8,9,'Seidenstraße'],
+     [10,11,'Schwabstraße'],[11,12,'Schwabstraße'],
+     [5,9,'Johannesstraße'],
+   ]},
+  {name:'Mitte',
+   nodes:[
+     {x:.12,y:.08,lm:'Bücherei'},  // 0
+     {x:.50,y:.08,lm:null},        // 1
+     {x:.88,y:.12,lm:null},        // 2
+     {x:.12,y:.35,lm:null},        // 3
+     {x:.38,y:.40,lm:'Kirche'},    // 4: offset
+     {x:.68,y:.35,lm:null},        // 5
+     {x:.88,y:.45,lm:'Rathaus'},   // 6
+     {x:.25,y:.62,lm:'Denkmal'},   // 7
+     {x:.55,y:.65,lm:null},        // 8
+     {x:.88,y:.68,lm:null},        // 9
+     {x:.12,y:.88,lm:null},        // 10
+     {x:.50,y:.90,lm:'See'},       // 11
+     {x:.78,y:.88,lm:'Gymnasium'}, // 12
+   ],
+   edges:[
+     [0,1,'Königstraße'],[1,2,'Königstraße'],
+     [0,3,'Schulstraße'],[3,7,'Schulstraße'],[7,10,'Schulstraße'],
+     [1,4,'Kirchstraße'],[4,8,'Kirchstraße'],
+     [2,5,'Leonhardstraße'],[5,6,'Leonhardstraße'],
+     [3,4,'Friedrichstraße'],[4,5,'Friedrichstraße'],[5,9,'Marktplatz'],
+     [6,9,'Calwer Straße'],[9,12,'Calwer Straße'],
+     [7,8,'Eberhardstraße'],[8,9,'Eberhardstraße'],
+     [8,11,'Gymnasiumstraße'],[11,12,'Gymnasiumstraße'],
+     [10,11,'Marktstraße'],
+   ]},
+  {name:'Süd',
+   nodes:[
+     {x:.10,y:.08,lm:null},        // 0
+     {x:.42,y:.05,lm:'Klinikum'},  // 1
+     {x:.78,y:.10,lm:null},        // 2
+     {x:.10,y:.40,lm:'Park'},      // 3
+     {x:.50,y:.35,lm:null},        // 4: 5-way junction
+     {x:.78,y:.30,lm:'Spielplatz'},// 5
+     {x:.30,y:.60,lm:'Schule'},    // 6
+     {x:.60,y:.58,lm:null},        // 7
+     {x:.90,y:.55,lm:'Supermarkt'},// 8
+     {x:.10,y:.85,lm:null},        // 9
+     {x:.45,y:.88,lm:null},        // 10
+     {x:.75,y:.85,lm:'Feuerwehr'}, // 11
+     {x:.50,y:.72,lm:null},        // 12: interior T-junction
+   ],
+   edges:[
+     [0,1,'Filderstraße'],[1,2,'Filderstraße'],
+     [0,3,'Kolbstraße'],[3,6,'Kolbstraße'],[6,9,'Kolbstraße'],
+     [1,4,'Zellerstraße'],[4,12,'Zellerstraße'],[12,10,'Zellerstraße'],
+     [2,5,'Liststraße'],[5,8,'Liststraße'],[8,11,'Liststraße'],
+     [3,4,'Tübinger Straße'],[4,5,'Tübinger Straße'],
+     [6,7,'Böblinger Straße'],[7,8,'Böblinger Straße'],
+     [9,10,'Heslacher Straße'],[10,11,'Heslacher Straße'],
+     [4,7,'Cottastraße'],[7,12,'Cottastraße'],
+   ]},
+];
+
+function getNodeNeighbors(mapData,nodeIdx){
+  const nb=[];
+  mapData.edges.forEach(e=>{
+    if(e[0]===nodeIdx)nb.push({to:e[1],street:e[2]});
+    if(e[1]===nodeIdx)nb.push({to:e[0],street:e[2]});
+  });
+  return nb;
+}
+
+function getEdgeStreet(mapData,fromIdx,toIdx){
+  for(const e of mapData.edges){
+    if((e[0]===fromIdx&&e[1]===toIdx)||(e[1]===fromIdx&&e[0]===toIdx))return e[2];
+  }
+  return 'Straße';
+}
+
+function getTurnDirection(mapData,prevIdx,curIdx,nextIdx){
+  const pn=mapData.nodes[prevIdx],cn=mapData.nodes[curIdx],nn=mapData.nodes[nextIdx];
+  // Vector from prev to cur
+  const ax=cn.x-pn.x,ay=cn.y-pn.y;
+  // Vector from cur to next
+  const bx=nn.x-cn.x,by=nn.y-cn.y;
+  // Cross product: positive = right turn, negative = left turn
+  const cross=ax*by-ay*bx;
+  // Dot product for straight detection
+  const dot=ax*bx+ay*by;
+  const magA=Math.sqrt(ax*ax+ay*ay),magB=Math.sqrt(bx*bx+by*by);
+  const cosAngle=dot/(magA*magB+0.001);
+  if(cosAngle>0.85)return 'geradeaus';
   return cross>0?'rechts abbiegen':'links abbiegen';
 }
 
-function getStreetBetween(mapData,from,to){
-  if(from.r===to.r){
-    // Horizontal movement — on a horizontal street (row index)
-    return mapData.hStreets[from.r]||'Straße';
-  } else {
-    // Vertical movement — on a vertical street (col index)
-    return mapData.vStreets[from.c]||'Straße';
-  }
-}
-
-function buildRouteDescription(route,mapData){
+function buildGraphRouteDesc(route,mapData){
   const parts=[];
   for(let i=0;i<route.length-1;i++){
-    const from=route[i],to=route[i+1];
-    const street=getStreetBetween(mapData,from,to);
+    const street=getEdgeStreet(mapData,route[i],route[i+1]);
     if(i===0){
       parts.push('Gehe die '+street+' entlang');
     } else {
-      const prev=route[i-1];
-      const dir=getDirection(prev,from,null);
-      const turnDir=getDirection(from,to,prev);
-      if(turnDir==='geradeaus'){
-        parts.push('weiter geradeaus auf der '+street);
-      } else {
-        parts.push(turnDir+' in die '+street);
-      }
+      const dir=getTurnDirection(mapData,route[i-1],route[i],route[i+1]);
+      if(dir==='geradeaus') parts.push('weiter geradeaus auf der '+street);
+      else parts.push(dir+' in die '+street);
     }
-    // Check if passing a landmark
-    const lm=mapData.landmarks.find(l=>l.row===to.r&&l.col===to.c);
-    if(lm&&i<route.length-2){
-      parts[parts.length-1]+=' (vorbei am '+lm.name+')';
+    // Landmark at destination (unless it's the final point)
+    const destNode=mapData.nodes[route[i+1]];
+    if(destNode.lm&&i<route.length-2){
+      parts[parts.length-1]+=' (vorbei am '+destNode.lm+')';
     }
   }
   return parts.join(', dann ')+'.';
 }
 
-function corruptDescription(route,mapData){
-  // Create a wrong description by corrupting one turn
+function corruptGraphDesc(route,mapData){
   const parts=[];
-  const corruptIdx=1+Math.floor(rng()*(route.length-2));
+  const corruptIdx=1+Math.floor(rng()*Math.max(1,route.length-2));
+  const allStreets=[...new Set(mapData.edges.map(e=>e[2]))];
   for(let i=0;i<route.length-1;i++){
-    const from=route[i],to=route[i+1];
-    const street=getStreetBetween(mapData,from,to);
+    const street=getEdgeStreet(mapData,route[i],route[i+1]);
     if(i===0){
-      parts.push('Gehe die '+street+' entlang');
-    } else {
-      const prev=route[i-1];
-      const turnDir=getDirection(from,to,prev);
       if(i===corruptIdx){
-        // Corrupt: swap direction or wrong street
+        const wrong=allStreets.filter(s=>s!==street);
+        parts.push('Gehe die '+(wrong[Math.floor(rng()*wrong.length)]||street)+' entlang');
+      } else {
+        parts.push('Gehe die '+street+' entlang');
+      }
+    } else {
+      const dir=getTurnDirection(mapData,route[i-1],route[i],route[i+1]);
+      if(i===corruptIdx){
         if(rng()<0.5){
-          const wrongDir=turnDir==='links abbiegen'?'rechts abbiegen':'links abbiegen';
+          const wrongDir=dir==='links abbiegen'?'rechts abbiegen':(dir==='rechts abbiegen'?'links abbiegen':'rechts abbiegen');
           parts.push(wrongDir+' in die '+street);
         } else {
-          const wrongStreets=from.r===to.r?mapData.hStreets:mapData.vStreets;
-          const wrongStreet=wrongStreets[Math.floor(rng()*wrongStreets.length)];
-          parts.push(turnDir+' in die '+(wrongStreet!==street?wrongStreet:wrongStreets[0]));
+          const wrong=allStreets.filter(s=>s!==street);
+          parts.push((dir==='geradeaus'?'weiter geradeaus auf der ':dir+' in die ')+(wrong[Math.floor(rng()*wrong.length)]||street));
         }
       } else {
-        if(turnDir==='geradeaus'){
-          parts.push('weiter geradeaus auf der '+street);
-        } else {
-          parts.push(turnDir+' in die '+street);
-        }
+        if(dir==='geradeaus') parts.push('weiter geradeaus auf der '+street);
+        else parts.push(dir+' in die '+street);
       }
     }
   }
   return parts.join(', dann ')+'.';
 }
 
-function generateRoute(mapData){
-  // Simple BFS between two random intersections with at least 2 turns
-  const rows=mapData.rows,cols=mapData.cols;
-  let route=null,attempts=0;
-  while(!route&&attempts<50){
-    attempts++;
-    const sr=Math.floor(rng()*rows),sc=Math.floor(rng()*cols);
-    const er=Math.floor(rng()*rows),ec=Math.floor(rng()*cols);
-    if(sr===er&&sc===ec)continue;
-    if(Math.abs(sr-er)+Math.abs(sc-ec)<2)continue;
-    // BFS
-    const q=[{r:sr,c:sc,path:[{r:sr,c:sc}]}];
-    const visited=new Set();visited.add(sr+','+sc);
-    while(q.length>0){
-      const cur=q.shift();
-      if(cur.r===er&&cur.c===ec){route=cur.path;break;}
-      const nb=[{r:cur.r-1,c:cur.c},{r:cur.r+1,c:cur.c},{r:cur.r,c:cur.c-1},{r:cur.r,c:cur.c+1}];
-      nb.forEach(n=>{
-        if(n.r>=0&&n.r<rows&&n.c>=0&&n.c<cols&&!visited.has(n.r+','+n.c)){
-          visited.add(n.r+','+n.c);
-          q.push({r:n.r,c:n.c,path:[...cur.path,{r:n.r,c:n.c}]});
-        }
-      });
-    }
-    if(route&&route.length<3)route=null;
+function findGraphRoute(mapData,startIdx,endIdx){
+  const q=[{node:startIdx,path:[startIdx]}];
+  const visited=new Set([startIdx]);
+  while(q.length>0){
+    const cur=q.shift();
+    if(cur.node===endIdx)return cur.path;
+    const nb=getNodeNeighbors(mapData,cur.node);
+    nb.forEach(n=>{
+      if(!visited.has(n.to)){
+        visited.add(n.to);
+        q.push({node:n.to,path:[...cur.path,n.to]});
+      }
+    });
   }
-  return route;
+  return null;
+}
+
+function pickRouteEndpoints(mapData){
+  let best=null,bestLen=0,attempts=0;
+  while(attempts<30){
+    attempts++;
+    const a=Math.floor(rng()*mapData.nodes.length);
+    const b=Math.floor(rng()*mapData.nodes.length);
+    if(a===b)continue;
+    const route=findGraphRoute(mapData,a,b);
+    if(route&&route.length>=3&&route.length<=6){
+      if(route.length>bestLen){bestLen=route.length;best=route;}
+    }
+  }
+  return best;
+}
+
+function drawGraphStreetMap(canvas,mapData,route,showRoute){
+  const W=300,H=300;canvas.width=W;canvas.height=H;
+  const ctx=canvas.getContext('2d');
+  const pad=18;
+  const iw=W-pad*2,ih=H-pad*2;
+  function nx(x){return pad+x*iw;}
+  function ny(y){return pad+y*ih;}
+
+  // Background
+  ctx.fillStyle='#f0ede5';ctx.fillRect(0,0,W,H);
+
+  // Draw building blocks (fill between streets with color)
+  // Simple approach: fill triangulated areas between edges with building color
+  ctx.fillStyle='#e8d0b8';
+  ctx.fillRect(pad,pad,iw,ih);
+
+  // Draw edges (streets) as thick lines
+  ctx.lineCap='round';
+  mapData.edges.forEach(e=>{
+    const a=mapData.nodes[e[0]],b=mapData.nodes[e[1]];
+    ctx.strokeStyle='#fff';ctx.lineWidth=8;
+    ctx.beginPath();ctx.moveTo(nx(a.x),ny(a.y));ctx.lineTo(nx(b.x),ny(b.y));ctx.stroke();
+  });
+  // Street center lines
+  mapData.edges.forEach(e=>{
+    const a=mapData.nodes[e[0]],b=mapData.nodes[e[1]];
+    ctx.strokeStyle='#ddd';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+    ctx.beginPath();ctx.moveTo(nx(a.x),ny(a.y));ctx.lineTo(nx(b.x),ny(b.y));ctx.stroke();
+    ctx.setLineDash([]);
+  });
+
+  // Street name labels along edges
+  ctx.font='7px -apple-system,sans-serif';ctx.fillStyle='#777';ctx.textAlign='center';ctx.textBaseline='bottom';
+  const labeledStreets=new Set();
+  mapData.edges.forEach(e=>{
+    if(labeledStreets.has(e[2]))return;
+    labeledStreets.add(e[2]);
+    const a=mapData.nodes[e[0]],b=mapData.nodes[e[1]];
+    const mx=(nx(a.x)+nx(b.x))/2,my=(ny(a.y)+ny(b.y))/2;
+    const angle=Math.atan2(ny(b.y)-ny(a.y),nx(b.x)-nx(a.x));
+    ctx.save();ctx.translate(mx,my);
+    let rot=angle;
+    if(rot>Math.PI/2)rot-=Math.PI;
+    if(rot<-Math.PI/2)rot+=Math.PI;
+    ctx.rotate(rot);
+    ctx.fillText(e[2],0,-4);
+    ctx.restore();
+  });
+
+  // Draw intersections
+  mapData.nodes.forEach((n,i)=>{
+    const x=nx(n.x),y=ny(n.y);
+    ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);
+    ctx.fillStyle='#bbb';ctx.fill();
+  });
+
+  // Draw landmarks
+  ctx.font='bold 9px -apple-system,sans-serif';
+  mapData.nodes.forEach(n=>{
+    if(!n.lm)return;
+    const x=nx(n.x),y=ny(n.y);
+    ctx.fillStyle='rgba(255,255,255,.9)';
+    ctx.beginPath();ctx.arc(x,y,10,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='var(--amber)';ctx.lineWidth=1.5;ctx.stroke();
+    ctx.fillStyle='#333';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(n.lm.slice(0,2),x,y);
+  });
+
+  // Draw route
+  if(showRoute&&route&&route.length>1){
+    ctx.setLineDash([6,4]);ctx.strokeStyle='#c2762d';ctx.lineWidth=3;ctx.lineCap='round';
+    ctx.beginPath();
+    route.forEach((ni,i)=>{
+      const n=mapData.nodes[ni];
+      i===0?ctx.moveTo(nx(n.x),ny(n.y)):ctx.lineTo(nx(n.x),ny(n.y));
+    });
+    ctx.stroke();ctx.setLineDash([]);
+    // A and B
+    const A=mapData.nodes[route[0]],B=mapData.nodes[route[route.length-1]];
+    ctx.font='bold 13px Georgia,serif';ctx.fillStyle='#c2762d';ctx.textAlign='center';
+    ctx.fillText('A',nx(A.x),ny(A.y)-13);
+    ctx.fillText('B',nx(B.x),ny(B.y)-13);
+    ctx.fillStyle='#c2762d';
+    ctx.beginPath();ctx.arc(nx(A.x),ny(A.y),5,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(nx(B.x),ny(B.y),5,0,Math.PI*2);ctx.fill();
+  }
 }
 
 function renderWeg(){
   if(quizRound>=MAX_ROUNDS){renderDone(()=>{resetQuiz();renderWeg();});return;}
 
-  const mapData=STREET_MAPS[Math.floor(rng()*STREET_MAPS.length)];
-  const route=generateRoute(mapData);
+  const mapData=WEGE_MAPS[Math.floor(rng()*WEGE_MAPS.length)];
+  const route=pickRouteEndpoints(mapData);
   if(!route){quizRound++;renderWeg();return;}
 
   if(advanced){
@@ -745,8 +779,8 @@ function renderWeg(){
 }
 
 function renderWegNormal(mapData,route){
-  const correctDesc=buildRouteDescription(route,mapData);
-  const wrongDesc=corruptDescription(route,mapData);
+  const correctDesc=buildGraphRouteDesc(route,mapData);
+  const wrongDesc=corruptGraphDesc(route,mapData);
   const opts=rng()<0.5?[{text:correctDesc,correct:true},{text:wrongDesc,correct:false}]:[{text:wrongDesc,correct:false},{text:correctDesc,correct:true}];
 
   let html='<div class="quiz-card"><div class="card-title">Frage '+(quizRound+1)+' / '+MAX_ROUNDS+'</div>';
@@ -758,7 +792,7 @@ function renderWegNormal(mapData,route){
   html+='<div class="scorebar"><div class="stat"><b id="sc">'+quizScore+'</b><small>Richtig</small></div><div class="stat"><b>'+quizRound+'</b><small>von '+MAX_ROUNDS+'</small></div></div>';
   contentEl.innerHTML=html;
 
-  drawStreetMapCanvas(document.getElementById('cWeg'),mapData,route,true);
+  drawGraphStreetMap(document.getElementById('cWeg'),mapData,route,true);
 
   contentEl.querySelectorAll('.route-opt').forEach(b=>{
     b.onclick=()=>{
@@ -789,46 +823,45 @@ function renderWegAdvanced(mapData,route){
 
   const canvas=document.getElementById('cWegA');
   const W=300,H=300;canvas.width=W;canvas.height=H;
-  const pad=28,cw=(W-pad*2)/mapData.cols,ch=(H-pad*2)/mapData.rows;
-  const startPt=route[0],endPt=route[route.length-1];
+  const pad=18,iw=W-pad*2,ih=H-pad*2;
+  function nx(x){return pad+x*iw;}
+  function ny(y){return pad+y*ih;}
+  const startIdx=route[0],endIdx=route[route.length-1];
 
-  // Draw base map without route, showing A and B
-  drawStreetMapCanvas(canvas,mapData,null,false);
+  drawGraphStreetMap(canvas,mapData,null,false);
   const ctx=canvas.getContext('2d');
-  // Mark A and B
-  ctx.font='bold 14px Georgia,serif';ctx.fillStyle='#c2762d';ctx.textAlign='center';
-  ctx.fillText('A',pad+startPt.c*cw,pad+startPt.r*ch-14);
-  ctx.fillText('B',pad+endPt.c*cw,pad+endPt.r*ch-14);
+  const sn=mapData.nodes[startIdx],en=mapData.nodes[endIdx];
+  ctx.font='bold 13px Georgia,serif';ctx.fillStyle='#c2762d';ctx.textAlign='center';
+  ctx.fillText('A',nx(sn.x),ny(sn.y)-13);
+  ctx.fillText('B',nx(en.x),ny(en.y)-13);
   ctx.fillStyle='#c2762d';
-  ctx.beginPath();ctx.arc(pad+startPt.c*cw,pad+startPt.r*ch,5,0,Math.PI*2);ctx.fill();
-  ctx.beginPath();ctx.arc(pad+endPt.c*cw,pad+endPt.r*ch,5,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(nx(sn.x),ny(sn.y),5,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(nx(en.x),ny(en.y),5,0,Math.PI*2);ctx.fill();
 
-  let userRoute=[startPt];
+  let userRoute=[startIdx];
   let phase='route';
 
-  function redrawRoute(){
-    drawStreetMapCanvas(canvas,mapData,null,false);
+  function redrawAdvRoute(){
+    drawGraphStreetMap(canvas,mapData,null,false);
     const ctx2=canvas.getContext('2d');
-    // Mark A and B
-    ctx2.font='bold 14px Georgia,serif';ctx2.fillStyle='#c2762d';ctx2.textAlign='center';
-    ctx2.fillText('A',pad+startPt.c*cw,pad+startPt.r*ch-14);
-    ctx2.fillText('B',pad+endPt.c*cw,pad+endPt.r*ch-14);
+    ctx2.font='bold 13px Georgia,serif';ctx2.fillStyle='#c2762d';ctx2.textAlign='center';
+    ctx2.fillText('A',nx(sn.x),ny(sn.y)-13);
+    ctx2.fillText('B',nx(en.x),ny(en.y)-13);
     ctx2.fillStyle='#c2762d';
-    ctx2.beginPath();ctx2.arc(pad+startPt.c*cw,pad+startPt.r*ch,5,0,Math.PI*2);ctx2.fill();
-    ctx2.beginPath();ctx2.arc(pad+endPt.c*cw,pad+endPt.r*ch,5,0,Math.PI*2);ctx2.fill();
-    // Draw user route
+    ctx2.beginPath();ctx2.arc(nx(sn.x),ny(sn.y),5,0,Math.PI*2);ctx2.fill();
+    ctx2.beginPath();ctx2.arc(nx(en.x),ny(en.y),5,0,Math.PI*2);ctx2.fill();
     if(userRoute.length>1){
-      ctx2.setLineDash([6,4]);ctx2.strokeStyle='#c2762d';ctx2.lineWidth=3;
+      ctx2.setLineDash([6,4]);ctx2.strokeStyle='#c2762d';ctx2.lineWidth=3;ctx2.lineCap='round';
       ctx2.beginPath();
-      userRoute.forEach((p,i)=>{
-        const x=pad+p.c*cw,y=pad+p.r*ch;
-        i===0?ctx2.moveTo(x,y):ctx2.lineTo(x,y);
+      userRoute.forEach((ni,i)=>{
+        const n=mapData.nodes[ni];
+        i===0?ctx2.moveTo(nx(n.x),ny(n.y)):ctx2.lineTo(nx(n.x),ny(n.y));
       });
       ctx2.stroke();ctx2.setLineDash([]);
     }
-    // Dots on user route
-    userRoute.forEach(p=>{
-      ctx2.beginPath();ctx2.arc(pad+p.c*cw,pad+p.r*ch,4,0,Math.PI*2);
+    userRoute.forEach(ni=>{
+      const n=mapData.nodes[ni];
+      ctx2.beginPath();ctx2.arc(nx(n.x),ny(n.y),4,0,Math.PI*2);
       ctx2.fillStyle='#c2762d';ctx2.fill();
     });
   }
@@ -838,38 +871,34 @@ function renderWegAdvanced(mapData,route){
     const rect=canvas.getBoundingClientRect();
     const sx=W/rect.width,sy=H/rect.height;
     const mx=(e.clientX-rect.left)*sx,my=(e.clientY-rect.top)*sy;
-    // Find nearest intersection
-    let best=null,bestD=Infinity;
-    for(let r=0;r<mapData.rows;r++)for(let c=0;c<mapData.cols;c++){
-      const x=pad+c*cw,y=pad+r*ch;
-      const d=(mx-x)**2+(my-y)**2;
-      if(d<bestD){bestD=d;best={r,c};}
-    }
-    if(!best||bestD>30*30)return;
-    // Must be adjacent to last point
-    const last=userRoute[userRoute.length-1];
-    const dist=Math.abs(best.r-last.r)+Math.abs(best.c-last.c);
-    if(dist!==1)return;
-    // Don't revisit
-    if(userRoute.some(p=>p.r===best.r&&p.c===best.c))return;
-    userRoute.push(best);
-    redrawRoute();
-    if(best.r===endPt.r&&best.c===endPt.c){
+    let bestIdx=-1,bestD=Infinity;
+    mapData.nodes.forEach((n,i)=>{
+      const d=(mx-nx(n.x))**2+(my-ny(n.y))**2;
+      if(d<bestD){bestD=d;bestIdx=i;}
+    });
+    if(bestIdx<0||bestD>25*25)return;
+    const lastIdx=userRoute[userRoute.length-1];
+    // Must be connected by an edge
+    const nb=getNodeNeighbors(mapData,lastIdx);
+    if(!nb.some(n=>n.to===bestIdx))return;
+    if(userRoute.includes(bestIdx))return;
+    userRoute.push(bestIdx);
+    redrawAdvRoute();
+    if(bestIdx===endIdx){
       phase='describe';
       document.getElementById('wegHint').innerHTML='<b>Weg gefunden!</b> Beschreibe jetzt jeden Schritt:';
-      startDescriptionPhase(mapData,userRoute);
+      startGraphDescPhase(mapData,userRoute,canvas,nx,ny);
     }
   };
 
-  function startDescriptionPhase(mapData,uRoute){
+  function startGraphDescPhase(mapData,uRoute,canvas,nx,ny){
     canvas.style.cursor='default';
-    let stepIdx=1;
-    let stepScore=0;
+    let stepIdx=1,stepScore=0;
     const stepsDiv=document.getElementById('wegSteps');
+    const allStreets=[...new Set(mapData.edges.map(e=>e[2]))];
 
     function showStep(){
       if(stepIdx>=uRoute.length){
-        // Done
         const pct=Math.round(stepScore/(uRoute.length-1)*100);
         stepsDiv.innerHTML='<p class="result-hint" style="margin-top:10px;"><b>'+stepScore+'/'+(uRoute.length-1)+' Schritte richtig!</b></p><button class="btn" id="waNx">Weiter →</button>';
         if(pct>=50)quizScore++;
@@ -878,48 +907,43 @@ function renderWegAdvanced(mapData,route){
         document.getElementById('waNx').onclick=renderWeg;
         return;
       }
-      const from=uRoute[stepIdx-1],to=uRoute[stepIdx];
-      const prev=stepIdx>1?uRoute[stepIdx-2]:null;
-      const street=getStreetBetween(mapData,from,to);
+      const fromIdx=uRoute[stepIdx-1],toIdx=uRoute[stepIdx];
+      const street=getEdgeStreet(mapData,fromIdx,toIdx);
       let correctOpt;
       if(stepIdx===1){
         correctOpt='Gehe die '+street+' entlang';
       } else {
-        const turnDir=getDirection(from,to,prev);
-        correctOpt=turnDir==='geradeaus'?'Geradeaus auf der '+street:turnDir.charAt(0).toUpperCase()+turnDir.slice(1)+' in die '+street;
+        const prevIdx=uRoute[stepIdx-2];
+        const dir=getTurnDirection(mapData,prevIdx,fromIdx,toIdx);
+        correctOpt=dir==='geradeaus'?'Geradeaus auf der '+street:dir.charAt(0).toUpperCase()+dir.slice(1)+' in die '+street;
       }
-      // Generate wrong options
       const wrongOpts=[];
-      const allStreets=[...mapData.hStreets,...mapData.vStreets].filter(s=>s!==street);
-      shuffle(allStreets);
+      const otherStreets=allStreets.filter(s=>s!==street);
+      shuffle(otherStreets);
       if(stepIdx===1){
-        wrongOpts.push('Gehe die '+allStreets[0]+' entlang');
-        wrongOpts.push('Gehe die '+allStreets[1]+' entlang');
+        wrongOpts.push('Gehe die '+(otherStreets[0]||'Straße')+' entlang');
+        wrongOpts.push('Gehe die '+(otherStreets[1]||otherStreets[0]||'Weg')+' entlang');
       } else {
-        const dirs=['links abbiegen','rechts abbiegen','geradeaus'];
+        const dirs=['Links abbiegen','Rechts abbiegen','Geradeaus'];
         dirs.forEach(d=>{
-          if(d==='geradeaus'){
-            const opt='Geradeaus auf der '+allStreets[0];
-            if(opt!==correctOpt)wrongOpts.push(opt);
-          } else {
-            const opt=d.charAt(0).toUpperCase()+d.slice(1)+' in die '+allStreets[wrongOpts.length%allStreets.length];
-            if(opt!==correctOpt)wrongOpts.push(opt);
-          }
+          const s=otherStreets[wrongOpts.length%otherStreets.length]||'Straße';
+          const opt=d==='Geradeaus'?'Geradeaus auf der '+s:d+' in die '+s;
+          if(opt!==correctOpt)wrongOpts.push(opt);
         });
       }
       const opts=shuffle([correctOpt,...wrongOpts.slice(0,2)]);
 
-      let h='<div style="margin-top:8px;"><p style="font-size:12px;font-weight:600;margin:0 0 6px;">Schritt '+stepIdx+': Was machst du an dieser Kreuzung?</p>';
+      let h='<div style="margin-top:8px;"><p style="font-size:12px;font-weight:600;margin:0 0 6px;">Schritt '+stepIdx+': Was machst du hier?</p>';
       h+='<div style="display:flex;gap:6px;flex-wrap:wrap;">';
       opts.forEach(o=>{h+='<button class="cross-btn" data-a="'+o+'">'+o+'</button>';});
       h+='</div></div>';
       stepsDiv.innerHTML=h;
 
-      // Highlight current crossing on map
-      redrawRoute();
+      redrawAdvRoute();
       const ctx3=canvas.getContext('2d');
+      const fn=mapData.nodes[fromIdx];
       ctx3.strokeStyle='#c2762d';ctx3.lineWidth=3;
-      ctx3.beginPath();ctx3.arc(pad+from.c*cw,pad+from.r*ch,10,0,Math.PI*2);ctx3.stroke();
+      ctx3.beginPath();ctx3.arc(nx(fn.x),ny(fn.y),10,0,Math.PI*2);ctx3.stroke();
 
       stepsDiv.querySelectorAll('.cross-btn').forEach(b=>{
         b.onclick=()=>{

@@ -66,6 +66,11 @@ svg.map{width:100%;height:auto;max-height:60vh;display:block;touch-action:manipu
 .geb.no{fill:var(--wrong);fill-opacity:.85;stroke:var(--wrong);}
 .geb-dim{fill:#c4aa72;fill-opacity:.2;stroke:#8a7040;stroke-width:.5;pointer-events:none;}
 .geb-ov{fill:#c4aa72;fill-opacity:.35;stroke:#8a7040;stroke-width:.5;pointer-events:none;}
+.gl{fill-opacity:.4;stroke-width:1.2;cursor:pointer;transition:.12s;}
+.gl.sel{fill-opacity:.65;stroke-width:2.2;}
+.gl.ok{fill:var(--right)!important;fill-opacity:.6;stroke:var(--right)!important;}
+.gl.no{fill:var(--wrong)!important;fill-opacity:.6;stroke:var(--wrong)!important;}
+.gl-dim{fill-opacity:.15;stroke-width:.5;pointer-events:none;}
 .rl{stroke:var(--water);stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round;pointer-events:none;}
 .rl.sel{stroke:var(--amber);stroke-width:3.4;}
 .rl.ok{stroke:var(--right);} .rl.no{stroke:var(--wrong);}
@@ -266,6 +271,12 @@ const mountains=[
   {name:'Harz',info:'Nördlichstes Mittelgebirge; Brocken 1141 m',pts:[[10.22,51.88],[10.38,51.60],[10.72,51.52],[11.05,51.52],[11.42,51.60],[11.42,51.80],[11.12,51.95],[10.72,51.95],[10.38,51.92],[10.22,51.88]]},
   {name:'Eifel',info:'Westlichstes Mittelgebirge; Nürburgring',pts:[[6.22,50.72],[6.55,50.82],[7.02,50.72],[7.45,50.38],[7.10,49.85],[6.65,49.78],[6.22,50.00],[6.08,50.32],[6.22,50.72]]},
 ];
+const landscapes=[
+  {name:'Norddeutsches Tiefland',info:'0–200 m; Flachland mit glazialen Ablagerungen (Sand, Lehm, Geröll aus der Eiszeit)',pts:[[5.8,55.1],[6.5,55.0],[7.5,54.8],[8.5,54.9],[9.5,54.8],[10.5,54.5],[11.5,54.4],[12.5,54.2],[13.5,54.3],[14.5,54.0],[15.1,54.0],[15.1,52.2],[14.5,51.8],[13.8,51.3],[13.0,51.2],[12.3,51.0],[11.5,51.3],[10.8,51.4],[10.2,51.8],[9.8,52.1],[9.0,52.2],[8.2,52.3],[7.5,52.0],[6.8,51.8],[6.2,51.5],[5.8,51.8],[5.8,55.1]]},
+  {name:'Mittelgebirgsland',info:'200–1500 m; Bruchschollengebirge und Faltenreste (altes, hartes Gestein)',pts:[[5.8,51.8],[6.2,51.5],[6.8,51.8],[7.5,52.0],[8.2,52.3],[9.0,52.2],[9.8,52.1],[10.2,51.8],[10.8,51.4],[11.5,51.3],[12.3,51.0],[13.0,51.2],[13.8,51.3],[14.5,51.8],[15.1,52.2],[15.1,48.2],[14.0,48.1],[13.2,47.9],[12.5,47.85],[11.8,47.95],[11.0,48.0],[10.2,48.0],[9.5,47.9],[8.8,47.85],[8.0,47.9],[7.5,48.2],[6.8,48.5],[6.0,48.8],[5.8,49.0],[5.8,51.8]]},
+  {name:'Alpenvorland',info:'300–800 m; Molassebecken — Sedimentgesteine (Schotter, Kies, Nagelfluh), Moränenhügel',pts:[[8.0,47.9],[8.8,47.85],[9.5,47.9],[10.2,48.0],[11.0,48.0],[11.8,47.95],[12.5,47.85],[13.2,47.9],[13.5,47.7],[13.2,47.6],[12.6,47.55],[12.0,47.52],[11.2,47.48],[10.5,47.48],[9.8,47.52],[9.2,47.55],[8.6,47.58],[8.0,47.62],[8.0,47.9]]},
+  {name:'Alpen',info:'800–2962 m (Zugspitze); Faltengebirge — Kalk- und Kristallingestein',pts:[[8.0,47.62],[8.6,47.58],[9.2,47.55],[9.8,47.52],[10.5,47.48],[11.2,47.48],[12.0,47.52],[12.6,47.55],[13.2,47.6],[13.5,47.7],[13.5,47.2],[12.5,47.2],[11.5,47.2],[10.5,47.2],[9.5,47.2],[8.5,47.2],[8.0,47.2],[8.0,47.62]]},
+];
 const cities=[
   {name:'Berlin',lon:13.405,lat:52.52,info:'Hauptstadt Deutschlands'},
   {name:'Hamburg',lon:9.993,lat:53.551,info:'Größter Hafen, Stadtstaat'},
@@ -305,11 +316,12 @@ const CAT={
   cities:    {label:'Städte',       color:'#c2762d',type:'pin',   cls:'city',  get:()=>cities},
   rivers:    {label:'Flüsse',       color:'#3a7d8c',type:'river', get:()=>rivers},
   mountains: {label:'Gebirge',      color:'#7a6a45',type:'geb',   get:()=>mountains},
+  landscapes:{label:'Großlandschaften',color:'#6a9a5a',type:'landscape',get:()=>landscapes},
   seas:      {label:'Meere',        color:'#1a6070',type:'sea',   get:()=>seas},
   lakes:     {label:'Seen',         color:'#3a7d8c',type:'pin',   cls:'lake',  get:()=>lakes},
   islands:   {label:'Inseln',       color:'#3a6e8c',type:'pin',   cls:'island',get:()=>islands},
 };
-const CAT_ORDER=['states','neighbours','cities','rivers','mountains','seas','lakes','islands'];
+const CAT_ORDER=['states','neighbours','cities','rivers','mountains','landscapes','seas','lakes','islands'];
 
 function mkDisabled(){return {lakes:new Set([3,4])};}
 
@@ -526,7 +538,7 @@ function render(){
   });
 
   // 4) Mountains
-  const showMtn=effCat==='mountains'||mode===2||mode===3;
+  const showMtn=(effCat==='mountains'||mode===2||mode===3)&&effCat!=='landscapes';
   if(showMtn){
     mountains.forEach((m,i)=>{
       if(!isOn('mountains',i))return;
@@ -536,6 +548,26 @@ function render(){
       const el=se('path',{d:ptsp(m.pts),class:cls});
       if(isAct&&mode===3)el.addEventListener('click',()=>onWiPick('mountains',i));
       else if(isAct&&mode!==2)el.addEventListener('click',()=>onPick('mountains',i,m));
+      svgMap.appendChild(el);
+    });
+  }
+
+  // 4b) Großlandschaften
+  if(effCat==='landscapes'){
+    const defs=se('defs',{});
+    const cp=document.createElementNS('http://www.w3.org/2000/svg','clipPath');
+    cp.setAttribute('id','gl-clip');
+    cp.appendChild(se('path',{d:DE.map(f=>ppath(f.g)).join('')}));
+    defs.appendChild(cp);svgMap.appendChild(defs);
+    const glC=['#6ab86a','#b8875a','#d4b060','#8a7068'];
+    landscapes.forEach((l,i)=>{
+      if(!isOn('landscapes',i))return;
+      const key=keyFor('landscapes',i),a=answered[key];
+      const isSel=effSel===key;
+      const el=se('path',{d:ptsp(l.pts),class:'gl'+(isSel?' sel':'')+(a?' '+a:''),'clip-path':'url(#gl-clip)'});
+      if(!a){el.style.fill=glC[i];el.style.stroke=glC[i];}
+      if(mode===3)el.addEventListener('click',()=>onWiPick('landscapes',i));
+      else if(mode!==2)el.addEventListener('click',()=>onPick('landscapes',i,l));
       svgMap.appendChild(el);
     });
   }
@@ -582,6 +614,7 @@ function render(){
     else if(effCat==='neighbours')NB.forEach((f,i)=>{if(isOn('neighbours',i)){const[x,y]=cen(f.g);svgMap.appendChild(stxt(x,y,f.n,'lbl'));}});
     else if(effCat==='rivers')rivers.forEach((r,i)=>{if(isOn('rivers',i)){const seg=r.segs[0],c=pp(seg[Math.floor(seg.length/2)]);svgMap.appendChild(stxt(c[0],c[1],r.name,'lbl'));}});
     else if(effCat==='mountains')mountains.forEach((m,i)=>{if(isOn('mountains',i)){const pts=m.pts.map(proj);const cx=pts.reduce((s,p)=>s+p[0],0)/pts.length,cy=pts.reduce((s,p)=>s+p[1],0)/pts.length;svgMap.appendChild(stxt(cx,cy+15,m.name,'lbl'));}});
+    else if(effCat==='landscapes')landscapes.forEach((l,i)=>{if(isOn('landscapes',i)){const pts=l.pts.map(proj);const cx=pts.reduce((s,p)=>s+p[0],0)/pts.length,cy=pts.reduce((s,p)=>s+p[1],0)/pts.length;svgMap.appendChild(stxt(cx,cy,l.name,'lbl'));}});
     else if(effCat==='seas')seas.forEach((s,i)=>{if(isOn('seas',i)){const[x,y]=cen(s.g);svgMap.appendChild(stxt(x,y,s.name,'lbl-sea'));}});
     else listFor(effCat).forEach((m,i)=>{if(isOn(effCat,i)){const c=pp([m.lon,m.lat]);svgMap.appendChild(stxt(c[0]+10,c[1]+4,m.name,'lbl','start'));}});
   }
@@ -797,6 +830,22 @@ function buildFragen(){
     aq.push({type:'l',q:'An welchem Meer liegt Rügen?',ans:'Ostsee',opts:shuffle(['Ostsee','Nordsee','Atlantik','Mittelmeer'])});
   if(seaNames.includes('Nordsee'))
     aq.push({type:'l',q:'In welchem Meer befindet sich das Wattenmeer?',ans:'Nordsee',opts:shuffle(['Nordsee','Ostsee','Atlantik','Mittelmeer'])});
+  // Großlandschaften-Wissensfragen
+  const aGL=landscapes.filter((_,i)=>isOn('landscapes',i));const glNames=aGL.map(l=>l.name);
+  if(glNames.length>=4){
+    [{q:'Welche Großlandschaft liegt auf 0–200 m Höhe?',ans:'Norddeutsches Tiefland'},
+     {q:'Welche Großlandschaft erreicht bis zu 2962 m (Zugspitze)?',ans:'Alpen'},
+     {q:'Welche Großlandschaft liegt auf 300–800 m Höhe?',ans:'Alpenvorland'},
+     {q:'In welcher Großlandschaft liegen Gebirge von 200–1500 m?',ans:'Mittelgebirgsland'},
+     {q:'Welche Großlandschaft besteht aus Sedimentgestein (Schotter, Nagelfluh)?',ans:'Alpenvorland'},
+     {q:'Welche Großlandschaft ist ein Faltengebirge aus Kalk- und Kristallingestein?',ans:'Alpen'},
+     {q:'Wo findet man Moränenhügel und Schotterebenen?',ans:'Alpenvorland'},
+     {q:'Wo findet man glaziale Ablagerungen (Sand, Lehm) aus der Eiszeit?',ans:'Norddeutsches Tiefland'},
+     {q:'Welche Großlandschaft liegt am weitesten nördlich?',ans:'Norddeutsches Tiefland'},
+     {q:'Welche Großlandschaft liegt zwischen Alpen und Mittelgebirgsland?',ans:'Alpenvorland'},
+     {q:'Welche Großlandschaft nimmt die größte Fläche Deutschlands ein?',ans:'Mittelgebirgsland'}]
+    .forEach(d=>aq.push({type:'r',q:d.q,ans:d.ans,opts:shuffle([...glNames])}));
+  }
   shuffle(aq);
   fList=aq.slice(0,12);fIdx=0;fScore=0;fAnswered=false;
 }
