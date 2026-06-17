@@ -935,23 +935,28 @@ function renderTwoPaths(){
   const shape=goodShapes[Math.floor(rng()*goodShapes.length)];
   const minAlt=advanced?300:200,maxAlt=advanced?1100:600,interval=50;
 
-  // Count contour crossings for a path
-  function countCrossings(p){
-    let crossings=0,prevH=null;
-    for(let i=0;i<60;i++){
-      const t=i/59;const fi=t*(p.length-1);const idx=Math.min(p.length-2,Math.floor(fi));const frac=fi-idx;
+  // Analyze a path: total crossings + max local steepness (crossings per segment)
+  function analyzePath(p){
+    const nSamp=20;
+    let totalCrossings=0,maxSegCrossings=0,prevH=null;
+    const segCrossings=[];
+    for(let i=0;i<nSamp;i++){
+      const t=i/(nSamp-1);const fi=t*(p.length-1);const idx=Math.min(p.length-2,Math.floor(fi));const frac=fi-idx;
       const px=p[idx].x*(1-frac)+p[idx+1].x*frac;
       const py=p[idx].y*(1-frac)+p[idx+1].y*frac;
       const h=getHeight(shape,px,py,minAlt,maxAlt);
       if(prevH!==null){
         const lo=Math.min(prevH,h),hi=Math.max(prevH,h);
+        let seg=0;
         for(let lvl=Math.ceil(lo/interval)*interval;lvl<=hi;lvl+=interval){
-          if(lvl>lo&&lvl<=hi)crossings++;
+          if(lvl>lo&&lvl<=hi){totalCrossings++;seg++;}
         }
+        segCrossings.push(seg);
+        if(seg>maxSegCrossings)maxSegCrossings=seg;
       }
       prevH=h;
     }
-    return crossings;
+    return {totalCrossings,maxSegCrossings,segCrossings};
   }
 
   // Generate many candidate paths and pick the pair with biggest crossing difference
@@ -985,34 +990,41 @@ function renderTwoPaths(){
     return pts;
   }
 
-  // Generate 8 candidate paths with varying shapes
+  // Generate 10 candidate paths with varying shapes
   const candidates=[];
-  for(let i=0;i<8;i++){
+  for(let i=0;i<10;i++){
     const nCtrl=3+Math.floor(rng()*5);
     const p=makeCandidate(baseSeed+i*4321,nCtrl);
-    candidates.push({path:p,crossings:countCrossings(p)});
+    const stats=analyzePath(p);
+    candidates.push({path:p,...stats});
   }
-  // Also include the reference path
-  candidates.push({path:refPath,crossings:countCrossings(refPath)});
+  candidates.push({path:refPath,...analyzePath(refPath)});
 
-  // Find the pair with maximum crossing difference
-  let bestSteep=null,bestGentle=null,bestDiff=0;
+  // Find the best pair where:
+  // 1. Total crossing difference is large
+  // 2. The gentle path's MAX segment steepness < steep path's max segment steepness
+  //    (gentle path is consistently gentler, never has a steep spike)
+  let bestSteep=null,bestGentle=null,bestScore=0;
   for(let i=0;i<candidates.length;i++){
     for(let j=i+1;j<candidates.length;j++){
-      const diff=Math.abs(candidates[i].crossings-candidates[j].crossings);
-      if(diff>bestDiff){
-        bestDiff=diff;
-        if(candidates[i].crossings>candidates[j].crossings){
-          bestSteep=candidates[i];bestGentle=candidates[j];
-        }else{
-          bestSteep=candidates[j];bestGentle=candidates[i];
-        }
-      }
+      const a=candidates[i],b=candidates[j];
+      // Determine which is steep, which is gentle
+      let steep,gentle;
+      if(a.totalCrossings>b.totalCrossings){steep=a;gentle=b;}
+      else{steep=b;gentle=a;}
+      // Gentle path must have lower max steepness than steep path
+      if(gentle.maxSegCrossings>=steep.maxSegCrossings)continue;
+      const diff=steep.totalCrossings-gentle.totalCrossings;
+      // Score: total difference + bonus for gentle having low max steepness
+      const score=diff+(steep.maxSegCrossings-gentle.maxSegCrossings)*2;
+      if(score>bestScore){bestScore=score;bestSteep=steep;bestGentle=gentle;}
     }
   }
 
-  // If difference is too small, retry with different terrain
-  if(bestDiff<3){rngSeed=Date.now()%100000;renderTwoPaths();return;}
+  // If no good pair found, retry
+  if(!bestSteep||bestSteep.totalCrossings-bestGentle.totalCrossings<3){
+    rngSeed=Date.now()%100000;renderTwoPaths();return;
+  }
 
   let pA=bestSteep.path,pB=bestGentle.path;
 
