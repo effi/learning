@@ -1148,25 +1148,10 @@ function renderWegBuildRoute(mapData,route){
     mapData.nodes.forEach((n,i)=>{const d=(mx-nx(n.x))**2+(my-ny(n.y))**2;if(d<bestD){bestD=d;bestIdx=i;}});
     if(bestIdx<0||bestD>25*25)return;
     if(userRoute.includes(bestIdx))return;
+    // Only direct neighbors allowed (connected by a single edge)
     const lastIdx=userRoute[userRoute.length-1];
     const directNb=getNodeNeighbors(mapData,lastIdx);
-    const isDirectNb=directNb.some(n=>n.to===bestIdx);
-    // Allow: direct neighbor, OR exactly 1 node skip on same street going straight
-    let isStraightSkip=false;
-    if(!isDirectNb){
-      for(const nb of directNb){
-        if(getEdgeStreet(mapData,nb.to,bestIdx)!==nb.street)continue;
-        const midNb=getNodeNeighbors(mapData,nb.to);
-        if(!midNb.some(n=>n.to===bestIdx))continue;
-        // Must be genuinely straight: use angle check
-        const a=mapData.nodes[lastIdx],b=mapData.nodes[nb.to],c=mapData.nodes[bestIdx];
-        const ax=b.x-a.x,ay=b.y-a.y,bx=c.x-b.x,by=c.y-b.y;
-        const dot=ax*bx+ay*by;
-        const mag=Math.sqrt(ax*ax+ay*ay)*Math.sqrt(bx*bx+by*by);
-        if(mag>0&&dot/mag>0.9){isStraightSkip=true;break;}
-      }
-    }
-    if(!isDirectNb&&!isStraightSkip)return;
+    if(!directNb.some(n=>n.to===bestIdx))return;
     userRoute.push(bestIdx);
     redraw();
     if(bestIdx===endIdx){
