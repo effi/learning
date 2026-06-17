@@ -80,14 +80,16 @@ canvas{display:block;width:100%;height:auto;border-radius:10px;}
   <button class="mbtn" id="m4" aria-pressed="false">Luftbild</button>
 </div>
 <div class="toggle-row">
-  <label for="advToggle">Advanced</label>
+  <label for="selfRoute">Weg selber wählen</label>
+  <button class="toggle-sw" id="selfRoute" role="switch" aria-checked="false"></button>
+  <label for="advToggle" style="margin-left:10px;">Advanced</label>
   <button class="toggle-sw" id="advToggle" role="switch" aria-checked="false"></button>
 </div>
 <div id="content"></div>
 </div>
 <script>
 /* ━━━━━━ STATE ━━━━━━ */
-let mode=0,quizScore=0,quizRound=0,learnIdx=0,advanced=false;
+let mode=0,quizScore=0,quizRound=0,learnIdx=0,advanced=false,selfRoute=false;
 const MAX_ROUNDS=6;
 const contentEl=document.getElementById('content');
 let rngSeed=Date.now()%100000;
@@ -114,24 +116,26 @@ const MAP_SYMBOLS=[
 ];
 
 const LANDMARKS_POOL=[
-  {name:'Kirche',symbol:'†',abbr:'K',colorId:'rot'},
-  {name:'Rathaus',symbol:'R',abbr:'R',colorId:'rot'},
-  {name:'Schule',symbol:'S',abbr:'S',colorId:'rot'},
-  {name:'Park',symbol:null,abbr:'P',colorId:'gruen'},
-  {name:'See',symbol:null,abbr:'Se',colorId:'blau'},
-  {name:'Brunnen',symbol:'○',abbr:'Br',colorId:'blau'},
-  {name:'Bücherei',symbol:'B',abbr:'Bü',colorId:'dgruen'},
-  {name:'Spielplatz',symbol:null,abbr:'Sp',colorId:'gruen'},
-  {name:'Supermarkt',symbol:null,abbr:'Su',colorId:'dgruen'},
-  {name:'Denkmal',symbol:'†',abbr:'D',colorId:'grau'},
-  {name:'Feuerwehr',symbol:'F',abbr:'Fw',colorId:'rot'},
-  {name:'Gymnasium',symbol:null,abbr:'Gy',colorId:'rot'},
+  {name:'Kirche',symbol:'✝',abbr:'K',colorId:'rot'},
+  {name:'Rathaus',symbol:'◉',abbr:'R',colorId:'rot'},
+  {name:'Schule',symbol:'▣',abbr:'S',colorId:'rot'},
+  {name:'Park',symbol:'🌳',abbr:'P',colorId:'gruen'},
+  {name:'See',symbol:'≋',abbr:'Se',colorId:'blau'},
+  {name:'Brunnen',symbol:'⊕',abbr:'Br',colorId:'blau'},
+  {name:'Bücherei',symbol:'📖',abbr:'Bü',colorId:'dgruen'},
+  {name:'Spielplatz',symbol:'◎',abbr:'Sp',colorId:'gruen'},
+  {name:'Supermarkt',symbol:'🛒',abbr:'Su',colorId:'dgruen'},
+  {name:'Denkmal',symbol:'◆',abbr:'D',colorId:'grau'},
+  {name:'Feuerwehr',symbol:'🚒',abbr:'Fw',colorId:'rot'},
+  {name:'Gymnasium',symbol:'▣',abbr:'Gy',colorId:'rot'},
 ];
 
 
 /* ━━━━━━ TOGGLE & MODES ━━━━━━ */
 const advBtn=document.getElementById('advToggle');
 advBtn.onclick=()=>{advanced=!advanced;advBtn.classList.toggle('on',advanced);advBtn.setAttribute('aria-checked',advanced);rerender();};
+const srBtn=document.getElementById('selfRoute');
+srBtn.onclick=()=>{selfRoute=!selfRoute;srBtn.classList.toggle('on',selfRoute);srBtn.setAttribute('aria-checked',selfRoute);if(mode===3){resetQuiz();renderWeg();}};
 function rerender(){
   if(mode===0)renderLearn();
   else if(mode===1){resetQuiz();renderSymbole();}
@@ -418,26 +422,26 @@ function drawPlanquadratMap(canvas,city,highlight){
   for(let r=0;r<size;r++)ctx.fillText(city.letters[r],pad/2,pad+r*ch+ch/2);
   for(let c=0;c<size;c++)ctx.fillText(''+(c+1),pad+c*cw+cw/2,pad/2);
 
-  // Landmark labels — position multiple per cell without overlap
-  ctx.font='bold 10px -apple-system,sans-serif';
+  // Landmark labels — use map-style symbols with name labels
   city.cells.forEach(cell=>{
     const lms=cell.landmarks;
     if(!lms||lms.length===0)return;
     const cx=pad+cell.col*cw,cy=pad+cell.row*ch;
-    // Offset positions within cell for 1, 2, or 3+ landmarks
     const positions=lms.length===1?
       [{dx:cw/2,dy:ch/2}]:
       lms.length===2?
-      [{dx:cw*0.33,dy:ch*0.4},{dx:cw*0.67,dy:ch*0.65}]:
-      lms.map((_,i)=>({dx:cw*(0.25+0.25*(i%2)),dy:ch*(0.25+0.25*Math.floor(i/2))}));
+      [{dx:cw*0.3,dy:ch*0.38},{dx:cw*0.7,dy:ch*0.65}]:
+      lms.map((_,i)=>({dx:cw*(0.25+0.3*(i%2)),dy:ch*(0.25+0.28*Math.floor(i/2))}));
     lms.forEach((lm,i)=>{
       const pos=positions[Math.min(i,positions.length-1)];
       const x=cx+pos.dx,y=cy+pos.dy;
-      ctx.fillStyle='rgba(255,255,255,.9)';
-      ctx.beginPath();ctx.arc(x,y,11,0,Math.PI*2);ctx.fill();
-      ctx.strokeStyle='#333';ctx.lineWidth=1.5;ctx.stroke();
-      ctx.fillStyle='#333';ctx.textAlign='center';ctx.textBaseline='middle';
-      ctx.fillText(lm.abbr,x,y);
+      // Draw symbol (like real map)
+      const sym=lm.symbol||lm.abbr;
+      ctx.font='bold 13px serif';ctx.fillStyle='#333';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(sym,x,y-4);
+      // Name label below
+      ctx.font='7px -apple-system,sans-serif';ctx.fillStyle='#555';
+      ctx.fillText(lm.name,x,y+8);
     });
   });
 }
@@ -847,12 +851,14 @@ function renderWeg(){
   const route=pickRouteEndpoints(mapData);
   if(!route){quizRound++;renderWeg();return;}
 
-  if(advanced){
-    renderWegBuildRoute(mapData,route);
+  if(selfRoute){
+    // Self-route: player builds route, then describes it
+    if(advanced) renderWegBuildRoute(mapData,route); // 2-step (direction + how far)
+    else renderWegBuildRouteSimple(mapData,route);   // crossing by crossing
   } else {
-    // Alternate: even = MC match, odd = describe shown route step-by-step
-    if(quizRound%2===0) renderWegNormal(mapData,route);
-    else renderWegAdvanced(mapData,route);
+    // Route shown: describe the given route
+    if(advanced) renderWegAdvanced(mapData,route);   // 2-step (direction + how far)
+    else renderWegNormal(mapData,route);             // MC: pick correct description
   }
 }
 
@@ -1088,7 +1094,177 @@ function renderWegAdvanced(mapData,route){
 }
 
 function renderWegBuildRoute(mapData,route){
-  // Player builds their own route by tapping intersections, then describes it
+  // Advanced: build route yourself, then 2-step description (direction + how far)
+  let html='<div class="quiz-card"><div class="card-title">Frage '+(quizRound+1)+' / '+MAX_ROUNDS+'</div>';
+  html+='<div class="quiz-q">Finde einen Weg von <b>A</b> nach <b>B</b>!</div>';
+  html+='<canvas id="cWegBAdv" style="cursor:pointer;"></canvas>';
+  html+='<p id="wegHintAdv" style="font-size:12px;color:var(--ink-soft);text-align:center;margin:6px 0;">Tippe auf Kreuzungen — du darfst auch welche überspringen!</p>';
+  html+='<div id="wegStepsAdv"></div></div>';
+  html+='<div class="scorebar"><div class="stat"><b id="sc">'+quizScore+'</b><small>Richtig</small></div><div class="stat"><b>'+quizRound+'</b><small>von '+MAX_ROUNDS+'</small></div></div>';
+  contentEl.innerHTML=html;
+
+  const canvas=document.getElementById('cWegBAdv');
+  const W=300,H=300;canvas.width=W;canvas.height=H;
+  const pad=18,iw=W-pad*2,ih=H-pad*2;
+  function nx(x){return pad+x*iw;}
+  function ny(y){return pad+y*ih;}
+  const startIdx=route[0],endIdx=route[route.length-1];
+
+  drawGraphStreetMap(canvas,mapData,null,false);
+  const ctx=canvas.getContext('2d');
+  const sn=mapData.nodes[startIdx],en=mapData.nodes[endIdx];
+  ctx.font='bold 13px Georgia,serif';ctx.fillStyle='#c2762d';ctx.textAlign='center';
+  ctx.fillText('A',nx(sn.x),ny(sn.y)-13);ctx.fillText('B',nx(en.x),ny(en.y)-13);
+  ctx.fillStyle='#c2762d';
+  ctx.beginPath();ctx.arc(nx(sn.x),ny(sn.y),5,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(nx(en.x),ny(en.y),5,0,Math.PI*2);ctx.fill();
+
+  let userRoute=[startIdx];
+  let phase='route';
+
+  function redraw(){
+    drawGraphStreetMap(canvas,mapData,null,false);
+    const c2=canvas.getContext('2d');
+    c2.font='bold 13px Georgia,serif';c2.fillStyle='#c2762d';c2.textAlign='center';
+    c2.fillText('A',nx(sn.x),ny(sn.y)-13);c2.fillText('B',nx(en.x),ny(en.y)-13);
+    c2.fillStyle='#c2762d';
+    c2.beginPath();c2.arc(nx(sn.x),ny(sn.y),5,0,Math.PI*2);c2.fill();
+    c2.beginPath();c2.arc(nx(en.x),ny(en.y),5,0,Math.PI*2);c2.fill();
+    if(userRoute.length>1){
+      c2.setLineDash([6,4]);c2.strokeStyle='#c2762d';c2.lineWidth=3;c2.lineCap='round';
+      c2.beginPath();
+      userRoute.forEach((ni,i)=>{const n=mapData.nodes[ni];i===0?c2.moveTo(nx(n.x),ny(n.y)):c2.lineTo(nx(n.x),ny(n.y));});
+      c2.stroke();c2.setLineDash([]);
+    }
+    userRoute.forEach(ni=>{const n=mapData.nodes[ni];c2.beginPath();c2.arc(nx(n.x),ny(n.y),4,0,Math.PI*2);c2.fillStyle='#c2762d';c2.fill();});
+  }
+
+  canvas.onclick=function(e){
+    if(phase!=='route')return;
+    const rect=canvas.getBoundingClientRect();
+    const sx=W/rect.width,sy=H/rect.height;
+    const mx=(e.clientX-rect.left)*sx,my=(e.clientY-rect.top)*sy;
+    let bestIdx=-1,bestD=Infinity;
+    mapData.nodes.forEach((n,i)=>{const d=(mx-nx(n.x))**2+(my-ny(n.y))**2;if(d<bestD){bestD=d;bestIdx=i;}});
+    if(bestIdx<0||bestD>25*25)return;
+    if(userRoute.includes(bestIdx))return;
+    // In advanced build mode, allow "skipping" nodes: just need a path to exist
+    const lastIdx=userRoute[userRoute.length-1];
+    const pathToNext=findGraphRoute(mapData,lastIdx,bestIdx);
+    if(!pathToNext)return;
+    userRoute.push(bestIdx);
+    redraw();
+    if(bestIdx===endIdx){
+      phase='describe';
+      canvas.style.cursor='default';
+      document.getElementById('wegHintAdv').innerHTML='<b>Weg gefunden!</b> Beschreibe jetzt die Schritte:';
+      // Use renderWegAdvanced's 2-step logic on the user's chosen route
+      startAdvancedDesc(mapData,userRoute,canvas,nx,ny);
+    }
+  };
+
+  function startAdvancedDesc(mapData,uRoute,canvas,nx,ny){
+    const allStreets=[...new Set(mapData.edges.map(e=>e[2]))];
+    const stepsDiv=document.getElementById('wegStepsAdv');
+    // Build full path expanding skipped nodes
+    const fullPath=[];
+    for(let i=0;i<uRoute.length-1;i++){
+      const seg=findGraphRoute(mapData,uRoute[i],uRoute[i+1]);
+      if(i===0)fullPath.push(...seg);
+      else fullPath.push(...seg.slice(1));
+    }
+    // Build decisions from full path (same logic as renderWegAdvanced)
+    const decisions=[];
+    for(let i=0;i<fullPath.length-1;i++){
+      const fromIdx=fullPath[i],toIdx=fullPath[i+1];
+      const street=getEdgeStreet(mapData,fromIdx,toIdx);
+      const destNode=mapData.nodes[toIdx];
+      if(i===0){decisions.push({fromIdx,toIdx,street,type:'start'});continue;}
+      const prevIdx=fullPath[i-1];
+      const dir=getTurnDirection(mapData,prevIdx,fromIdx,toIdx);
+      const prevStreet=getEdgeStreet(mapData,fullPath[i-1],fullPath[i]);
+      if(street!==prevStreet||dir!=='geradeaus'){
+        let target=null;
+        if(destNode.lm) target=destNode.lm;
+        else if(i===fullPath.length-2) target='Ziel B';
+        else{const nb=getNodeNeighbors(mapData,toIdx);target=nb.length>=3?'nächste Kreuzung':'Ende der Straße';}
+        decisions.push({fromIdx,toIdx,street,type:'turn',dir,target,prevIdx});
+      }
+    }
+    let stepIdx=1,stepScore=0;
+    const totalSteps=decisions.length;
+
+    function showDec(){
+      if(stepIdx>decisions.length){
+        const pct=Math.round(stepScore/totalSteps*100);
+        stepsDiv.innerHTML='<p class="result-hint" style="margin-top:10px;"><b>'+Math.round(stepScore)+'/'+totalSteps+' richtig!</b></p><button class="btn" id="wbaNx">Weiter →</button>';
+        if(pct>=50)quizScore++;
+        quizRound++;
+        document.getElementById('sc').textContent=quizScore;
+        document.getElementById('wbaNx').onclick=renderWeg;
+        return;
+      }
+      const d=decisions[stepIdx-1];
+      redraw();
+      const c3=canvas.getContext('2d');
+      const fn=mapData.nodes[d.fromIdx];
+      c3.strokeStyle='#c2762d';c3.lineWidth=3;
+      c3.beginPath();c3.arc(nx(fn.x),ny(fn.y),12,0,Math.PI*2);c3.stroke();
+
+      if(d.type==='start'){
+        const correctOpt='Gehe die '+d.street+' entlang';
+        const other=allStreets.filter(s=>s!==d.street);shuffle(other);
+        const opts=shuffle([correctOpt,'Gehe die '+(other[0]||'Weg')+' entlang','Gehe die '+(other[1]||'Pfad')+' entlang']);
+        let h='<div style="margin-top:8px;"><p style="font-size:12px;font-weight:600;margin:0 0 6px;">Schritt '+stepIdx+'/'+totalSteps+': Von A aus?</p>';
+        h+='<div style="display:flex;flex-direction:column;gap:6px;">';
+        opts.forEach(o=>{h+='<button class="cross-btn" data-a="'+o+'">'+o+'</button>';});
+        h+='</div></div>';
+        stepsDiv.innerHTML=h;
+        stepsDiv.querySelectorAll('.cross-btn').forEach(b=>{b.onclick=()=>{
+          stepsDiv.querySelectorAll('.cross-btn').forEach(x=>{x.disabled=true;if(x.dataset.a===correctOpt)x.classList.add('correct');else if(x===b&&b.dataset.a!==correctOpt)x.classList.add('incorrect');});
+          if(b.dataset.a===correctOpt)stepScore++;stepIdx++;setTimeout(showDec,800);
+        };});
+      } else {
+        // Direction question
+        const dirCorrect=d.dir==='geradeaus'?'Geradeaus':d.dir.charAt(0).toUpperCase()+d.dir.slice(1);
+        const dirOpts=shuffle(['Links abbiegen','Rechts abbiegen','Geradeaus']);
+        let h='<div style="margin-top:8px;"><p style="font-size:12px;font-weight:600;margin:0 0 6px;">Schritt '+stepIdx+'/'+totalSteps+': Richtung?</p>';
+        h+='<div style="display:flex;gap:6px;">';
+        dirOpts.forEach(o=>{h+='<button class="cross-btn" data-a="'+o+'" style="flex:1;">'+o+'</button>';});
+        h+='</div></div>';
+        stepsDiv.innerHTML=h;
+        stepsDiv.querySelectorAll('.cross-btn').forEach(b=>{b.onclick=()=>{
+          stepsDiv.querySelectorAll('.cross-btn').forEach(x=>{x.disabled=true;if(x.dataset.a===dirCorrect)x.classList.add('correct');else if(x===b&&b.dataset.a!==dirCorrect)x.classList.add('incorrect');});
+          if(b.dataset.a===dirCorrect)stepScore+=0.5;
+          setTimeout(()=>{
+            // How far question
+            const destNode=mapData.nodes[d.toIdx];
+            let howFar='bis zur nächsten Kreuzung';
+            if(destNode.lm)howFar='bis zum '+destNode.lm;
+            else if(d.toIdx===fullPath[fullPath.length-1])howFar='bis zum Ziel';
+            const correctOpt2='In die '+d.street+', '+howFar;
+            const other=allStreets.filter(s=>s!==d.street);shuffle(other);
+            const wrongT=['bis zum Park','bis zur Ampel','bis zur nächsten Kreuzung','bis zum Brunnen'].filter(t=>t!==howFar);shuffle(wrongT);
+            const opts2=shuffle([correctOpt2,'In die '+(other[0]||'Straße')+', '+(wrongT[0]||howFar),correctOpt2.replace(howFar,wrongT[1]||'bis zum Ende')]);
+            let h2='<div style="margin-top:8px;"><p style="font-size:12px;font-weight:600;margin:0 0 6px;">Wohin und wie weit?</p>';
+            h2+='<div style="display:flex;flex-direction:column;gap:6px;">';
+            opts2.forEach(o=>{h2+='<button class="cross-btn" data-a="'+o+'">'+o+'</button>';});
+            h2+='</div></div>';
+            stepsDiv.innerHTML=h2;
+            stepsDiv.querySelectorAll('.cross-btn').forEach(b2=>{b2.onclick=()=>{
+              stepsDiv.querySelectorAll('.cross-btn').forEach(x=>{x.disabled=true;if(x.dataset.a===correctOpt2)x.classList.add('correct');else if(x===b2&&b2.dataset.a!==correctOpt2)x.classList.add('incorrect');});
+              if(b2.dataset.a===correctOpt2)stepScore+=0.5;stepIdx++;setTimeout(showDec,800);
+            };});
+          },700);
+        };});
+      }
+    }
+    showDec();
+  }
+}
+
+function renderWegBuildRouteSimple(mapData,route){
+  // Player builds their own route by tapping intersections, then describes it crossing-by-crossing
   let html='<div class="quiz-card"><div class="card-title">Frage '+(quizRound+1)+' / '+MAX_ROUNDS+'</div>';
   html+='<div class="quiz-q">Finde einen Weg von <b>A</b> nach <b>B</b>!</div>';
   html+='<canvas id="cWegB" style="cursor:pointer;"></canvas>';
