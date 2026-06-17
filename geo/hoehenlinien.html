@@ -330,6 +330,7 @@ function drawContourMap(canvas,shape,minAlt,maxAlt,interval,path,opts){
   }
   const sx=W/gw,sy=H/gh;
 
+  const labelCandidates=[];
   levels.forEach(alt=>{
     const isMajor=(alt%100===0);
     ctx.strokeStyle=isMajor?'#6b4e20':'#9a7a48';
@@ -384,31 +385,81 @@ function drawContourMap(canvas,shape,minAlt,maxAlt,interval,path,opts){
     }
     ctx.stroke();
 
-    // Place rotated label along contour line
+    // Store label candidates for grouped placement (after all levels)
     if(contourSegs.length>0){
-      // Use a staggered target position based on contour level index
-      const li=levels.indexOf(alt);
-      const targetX=W*(.25+(li%3)*.25);
-      const targetY=H*(.3+((li*7)%5)*.1);
-      contourSegs.sort((a,b)=>((a.x-targetX)**2+(a.y-targetY)**2)-((b.x-targetX)**2+(b.y-targetY)**2));
-      const lbl=contourSegs[Math.min(3,contourSegs.length-1)];
-      const txt=''+alt;
+      labelCandidates.push({alt,segs:contourSegs});
+    }
+  });
+
+  // Place labels in groups — neighboring contour lines cluster together
+  if(labelCandidates.length>0){
+    // Sample path points for collision avoidance
+    const pathPts=[];
+    if(path&&path.length>0){
+      for(let i=0;i<path.length;i+=Math.max(1,Math.floor(path.length/40))){
+        pathPts.push({x:path[i].x*W,y:path[i].y*H});
+      }
+    }
+    const minPathDist=28;
+    function nearPath(px,py){
+      for(const pp of pathPts){
+        if((px-pp.x)**2+(py-pp.y)**2<minPathDist*minPathDist)return true;
+      }
+      return false;
+    }
+    // Find a good anchor region: pick a spot where multiple contour levels have segments nearby
+    // Try a few candidate anchors and score by how many levels have a segment within range
+    const anchors=[];
+    for(let ax=.2;ax<=.8;ax+=.15)for(let ay=.2;ay<=.8;ay+=.15){
+      const px=ax*W,py=ay*H;
+      if(nearPath(px,py))continue;
+      let score=0;
+      for(const lc of labelCandidates){
+        const hasSeg=lc.segs.some(s=>(s.x-px)**2+(s.y-py)**2<(W*.25)**2);
+        if(hasSeg)score++;
+      }
+      anchors.push({x:px,y:py,score});
+    }
+    anchors.sort((a,b)=>b.score-a.score);
+    const anchor=anchors[0]||{x:W*.3,y:H*.4};
+
+    ctx.font='bold 11px -apple-system,sans-serif';
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    const placedLabels=[];
+    for(const lc of labelCandidates){
+      // Find segment closest to anchor that doesn't collide with path or other labels
+      let best=null,bestD=Infinity;
+      for(const s of lc.segs){
+        if(nearPath(s.x,s.y))continue;
+        const tooClose=placedLabels.some(p=>(p.x-s.x)**2+(p.y-s.y)**2<20*20);
+        if(tooClose)continue;
+        const d=(s.x-anchor.x)**2+(s.y-anchor.y)**2;
+        if(d<bestD){bestD=d;best=s;}
+      }
+      if(!best){
+        // Fallback: just pick closest to anchor ignoring collisions
+        for(const s of lc.segs){
+          const d=(s.x-anchor.x)**2+(s.y-anchor.y)**2;
+          if(d<bestD){bestD=d;best=s;}
+        }
+      }
+      if(!best)continue;
+      const txt=''+lc.alt;
       ctx.save();
-      ctx.translate(lbl.x,lbl.y);
-      ctx.rotate(lbl.angle);
-      ctx.font='bold 11px -apple-system,sans-serif';
-      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.translate(best.x,best.y);
+      ctx.rotate(best.angle);
       const mt=ctx.measureText(txt);
       ctx.fillStyle='rgba(249,247,241,.9)';
       ctx.fillRect(-mt.width/2-3,-7,mt.width+6,14);
       ctx.fillStyle='#5a3e15';
       ctx.fillText(txt,0,0);
       ctx.restore();
+      placedLabels.push({x:best.x,y:best.y});
     }
-  });
+  }
 
-  // Draw path
-  if(path&&path.length>1){
+  // Draw path (unless suppressed via opts.hidePath)
+  if(path&&path.length>1&&!o.hidePath){
     ctx.setLineDash([6,4]);
     ctx.strokeStyle='#c2762d';ctx.lineWidth=2.5;
     ctx.beginPath();
@@ -863,41 +914,43 @@ function drawProfileWithMarkers(canvas,shape,minAlt,maxAlt,interval,path,color,N
 }
 
 function renderTwoPaths(){
-  const shapes=advanced?[...BASIC_SHAPES,...ADV_SHAPES]:BASIC_SHAPES;
-  const goodShapes=['peak','ridge','valley','ascent','hills','adv_mountain','adv_valley','adv_ridge'];
-  const pool=goodShapes.filter(s=>shapes.includes(s));
-  const shape=pool[Math.floor(rng()*pool.length)];
+  const goodShapes=advanced?['ascent','peak','ridge','hills','adv_mountain','adv_ridge']:['ascent','peak','ridge','hills'];
+  const shape=goodShapes[Math.floor(rng()*goodShapes.length)];
   const minAlt=advanced?300:200,maxAlt=advanced?1100:600,interval=50;
 
-  // Compute total height change (steepness indicator)
-  function computeTotalChange(p){
-    const nSamp=40;let total=0,prevH=null;
-    for(let i=0;i<nSamp;i++){
-      const t=i/(nSamp-1);const fi=t*(p.length-1);
-      const idx=Math.min(p.length-2,Math.floor(fi));const frac=fi-idx;
+  // Count contour crossings for a path
+  function countCrossings(p){
+    let crossings=0,prevH=null;
+    for(let i=0;i<60;i++){
+      const t=i/59;const fi=t*(p.length-1);const idx=Math.min(p.length-2,Math.floor(fi));const frac=fi-idx;
       const px=p[idx].x*(1-frac)+p[idx+1].x*frac;
       const py=p[idx].y*(1-frac)+p[idx+1].y*frac;
       const h=getHeight(shape,px,py,minAlt,maxAlt);
-      if(prevH!==null)total+=Math.abs(h-prevH);
+      if(prevH!==null){
+        const lo=Math.min(prevH,h),hi=Math.max(prevH,h);
+        for(let lvl=Math.ceil(lo/interval)*interval;lvl<=hi;lvl+=interval){
+          if(lvl>lo&&lvl<=hi)crossings++;
+        }
+      }
       prevH=h;
     }
-    return total;
+    return crossings;
   }
 
-  // Generate multiple candidate paths and pick the pair with biggest contrast
-  function makePath(seed,nCtrl){
-    return genPath(seed,nCtrl);
-  }
-  function makeAltPath(basePath,seedOffset){
-    let s=seedOffset;const lr=()=>{s=(s*16807)%2147483647;return s/2147483647;};
-    const startPt=basePath[0],endPt=basePath[basePath.length-1];
+  // Generate many candidate paths and pick the pair with biggest crossing difference
+  // All paths share the same start/end
+  const baseSeed=Math.floor(rng()*99999);
+  const refPath=genPath(baseSeed,5);
+  const startPt=refPath[0],endPt=refPath[refPath.length-1];
+
+  function makeCandidate(seedOff,nCtrl){
+    let sv=seedOff;const lr=()=>{sv=(sv*16807)%2147483647;return sv/2147483647;};
     const ctrl=[startPt];
-    const nMid=6+Math.floor(lr()*3);
-    for(let i=1;i<=nMid;i++){
-      const t=i/(nMid+1);
-      const baseY=startPt.y*(1-t)+endPt.y*t;
-      const offset=(lr()-.5)*.5;
-      ctrl.push({x:t*.9+.05,y:Math.max(.08,Math.min(.92,baseY+offset))});
+    for(let i=1;i<nCtrl-1;i++){
+      const t=i/(nCtrl-1);
+      const baseX=startPt.x+(endPt.x-startPt.x)*t;
+      const baseY=startPt.y+(endPt.y-startPt.y)*t;
+      ctrl.push({x:Math.max(.05,Math.min(.95,baseX+(lr()-.5)*.3)),y:Math.max(.05,Math.min(.95,baseY+(lr()-.5)*.5))});
     }
     ctrl.push(endPt);
     const pts=[];const segments=40;
@@ -915,17 +968,36 @@ function renderTwoPaths(){
     return pts;
   }
 
-  // Try several seeds and pick pair with max steepness difference
-  let bestPair=null,bestDiff=0;
-  for(let attempt=0;attempt<5;attempt++){
-    const seed=Math.floor(rng()*99999);
-    const p1=makePath(seed,5);
-    const p2=makeAltPath(p1,seed+7777+attempt*3333);
-    const s1=computeTotalChange(p1),s2=computeTotalChange(p2);
-    const diff=Math.abs(s1-s2);
-    if(diff>bestDiff){bestDiff=diff;bestPair={steep:s1>s2?p1:p2,gentle:s1>s2?p2:p1};}
+  // Generate 8 candidate paths with varying shapes
+  const candidates=[];
+  for(let i=0;i<8;i++){
+    const nCtrl=3+Math.floor(rng()*5);
+    const p=makeCandidate(baseSeed+i*4321,nCtrl);
+    candidates.push({path:p,crossings:countCrossings(p)});
   }
-  let pA=bestPair.steep,pB=bestPair.gentle;
+  // Also include the reference path
+  candidates.push({path:refPath,crossings:countCrossings(refPath)});
+
+  // Find the pair with maximum crossing difference
+  let bestSteep=null,bestGentle=null,bestDiff=0;
+  for(let i=0;i<candidates.length;i++){
+    for(let j=i+1;j<candidates.length;j++){
+      const diff=Math.abs(candidates[i].crossings-candidates[j].crossings);
+      if(diff>bestDiff){
+        bestDiff=diff;
+        if(candidates[i].crossings>candidates[j].crossings){
+          bestSteep=candidates[i];bestGentle=candidates[j];
+        }else{
+          bestSteep=candidates[j];bestGentle=candidates[i];
+        }
+      }
+    }
+  }
+
+  // If difference is too small, retry with different terrain
+  if(bestDiff<3){rngSeed=Date.now()%100000;renderTwoPaths();return;}
+
+  let pA=bestSteep.path,pB=bestGentle.path;
 
   const colorA='#c2762d',colorB='#4a7fb5';
   const nameA='Orange',nameB='Blau';
@@ -939,9 +1011,10 @@ function renderTwoPaths(){
   html+='<div id="tp-questions"></div>';
   contentEl.innerHTML=html;
 
-  // Draw map with both paths
+  // Draw map with both paths — pass combined path for label avoidance, suppress default path drawing
   const mapC=document.getElementById('dMap2');
-  drawContourMap(mapC,shape,minAlt,maxAlt,interval,null);
+  const combinedPath=pA.concat(pB);
+  drawContourMap(mapC,shape,minAlt,maxAlt,interval,combinedPath,{hidePath:true});
   const mapCtx=mapC.getContext('2d');
   const MW=mapC.width,MH=mapC.height;
 
