@@ -1148,10 +1148,30 @@ function renderWegBuildRoute(mapData,route){
     mapData.nodes.forEach((n,i)=>{const d=(mx-nx(n.x))**2+(my-ny(n.y))**2;if(d<bestD){bestD=d;bestIdx=i;}});
     if(bestIdx<0||bestD>25*25)return;
     if(userRoute.includes(bestIdx))return;
-    // In advanced build mode, allow "skipping" nodes: just need a path to exist
+    // Allow: direct neighbors OR straight-line continuation (same street, no turn)
     const lastIdx=userRoute[userRoute.length-1];
-    const pathToNext=findGraphRoute(mapData,lastIdx,bestIdx);
-    if(!pathToNext)return;
+    const directNb=getNodeNeighbors(mapData,lastIdx);
+    const isDirectNb=directNb.some(n=>n.to===bestIdx);
+    let isStraightSkip=false;
+    if(!isDirectNb){
+      // Check if bestIdx is reachable via a straight continuation through one intermediate node
+      for(const nb of directNb){
+        const midNb=getNodeNeighbors(mapData,nb.to);
+        if(!midNb.some(n=>n.to===bestIdx))continue;
+        // Check same street continues
+        const street1=nb.street;
+        const street2=getEdgeStreet(mapData,nb.to,bestIdx);
+        if(street1!==street2)continue;
+        // Check direction is straight (not a turn)
+        if(userRoute.length>=2){
+          const dir=getTurnDirection(mapData,lastIdx,nb.to,bestIdx);
+          if(dir==='geradeaus'){isStraightSkip=true;break;}
+        } else {
+          isStraightSkip=true;break;
+        }
+      }
+    }
+    if(!isDirectNb&&!isStraightSkip)return;
     userRoute.push(bestIdx);
     redraw();
     if(bestIdx===endIdx){
