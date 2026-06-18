@@ -1132,7 +1132,11 @@ function renderTwoPaths(){
     rngSeed=Date.now()%100000;renderTwoPaths();return;
   }
 
-  let pA=bestSteep.path,pB=bestGentle.path;
+  // Randomly assign steep/gentle to colors so the answer isn't always the same
+  const swapColors=rng()<0.5;
+  let pA=swapColors?bestGentle.path:bestSteep.path;
+  let pB=swapColors?bestSteep.path:bestGentle.path;
+  const steepIs=swapColors?'B':'A';
 
   const colorA='#c2762d',colorB='#4a7fb5';
   const nameA='Orange',nameB='Blau';
@@ -1140,11 +1144,12 @@ function renderTwoPaths(){
   const ptsA=findProfileExtrema(shape,pA,minAlt,maxAlt,5);
   const ptsB=findProfileExtrema(shape,pB,minAlt,maxAlt,5);
   const NA=ptsA.length,NB=ptsB.length;
+  const dashA=rng()<0.5;
 
   let html='<div class="card" id="tp-map-card"><div class="card-title">Zwei Wege vergleichen</div>';
   html+='<div class="card-desc">Zwei Wanderer gehen von A nach B — auf verschiedenen Wegen. Tippe auf einen Weg in der Karte, um sein Höhenprofil zu sehen!</div>';
   html+='<canvas id="dMap2" style="cursor:pointer;"></canvas>';
-  html+='<p style="font-size:11px;color:var(--ink-soft);margin:6px 0 0;text-align:center;"><span style="color:'+colorA+';font-weight:700;">━</span> Weg '+nameA+' &nbsp; <span style="color:'+colorB+';font-weight:700;">╍</span> Weg '+nameB+'</p></div>';
+  html+='<p style="font-size:11px;color:var(--ink-soft);margin:6px 0 0;text-align:center;"><span style="color:'+colorA+';font-weight:700;">'+(dashA?'╍':'━')+'</span> Weg '+nameA+' &nbsp; <span style="color:'+colorB+';font-weight:700;">'+(dashA?'━':'╍')+'</span> Weg '+nameB+'</p></div>';
   html+='<div id="tp-profile" style="margin-top:8px;"></div>';
   html+='<div id="tp-questions"></div>';
   contentEl.innerHTML=html;
@@ -1156,11 +1161,11 @@ function renderTwoPaths(){
   const mapCtx=mapC.getContext('2d');
   const MW=mapC.width,MH=mapC.height;
 
-  mapCtx.setLineDash([]);mapCtx.strokeStyle=colorA;mapCtx.lineWidth=3.5;
+  mapCtx.setLineDash(dashA?[8,5]:[]);mapCtx.strokeStyle=colorA;mapCtx.lineWidth=3.5;
   mapCtx.beginPath();
   pA.forEach((p,i)=>{i===0?mapCtx.moveTo(p.x*MW,p.y*MH):mapCtx.lineTo(p.x*MW,p.y*MH);});
   mapCtx.stroke();
-  mapCtx.strokeStyle=colorB;mapCtx.lineWidth=3.5;mapCtx.setLineDash([8,5]);
+  mapCtx.strokeStyle=colorB;mapCtx.lineWidth=3.5;mapCtx.setLineDash(dashA?[]:[8,5]);
   mapCtx.beginPath();
   pB.forEach((p,i)=>{i===0?mapCtx.moveTo(p.x*MW,p.y*MH):mapCtx.lineTo(p.x*MW,p.y*MH);});
   mapCtx.stroke();mapCtx.setLineDash([]);
@@ -1212,25 +1217,39 @@ function renderTwoPaths(){
   }
 
   function answerStep1(pick){
-    const correct='B';
+    // The gentle path is whichever is NOT steepIs
+    const gentle=steepIs==='A'?'B':'A';
+    const gentleName=gentle==='A'?nameA:nameB;
+    const correct=gentle;
     document.getElementById('tpA').disabled=true;
     document.getElementById('tpB').disabled=true;
-    if(pick===correct)document.getElementById('tpB').classList.add('correct');
-    else{document.getElementById('tpA').classList.add('incorrect');document.getElementById('tpB').classList.add('correct');}
+    document.getElementById('tp'+correct).classList.add('correct');
+    if(pick!==correct)document.getElementById('tp'+pick).classList.add('incorrect');
     const ok=pick===correct;
-    document.getElementById('tpFb1').innerHTML='<p class="result-hint">'+(ok?'✓ Richtig! Weg '+nameB+' verläuft flacher — die Höhenlinien liegen weiter auseinander.':'✗ Weg '+nameB+' ist entspannter — er quert weniger Höhenlinien auf engem Raum.')+'</p><button class="btn" id="tpNext1">Weiter: Steilster Abschnitt →</button>';
+    document.getElementById('tpFb1').innerHTML='<p class="result-hint">'+(ok?'✓ Richtig! Weg '+gentleName+' verläuft flacher — die Höhenlinien liegen weiter auseinander.':'✗ Weg '+gentleName+' ist entspannter — er quert weniger Höhenlinien auf engem Raum.')+'</p><button class="btn" id="tpNext1">Weiter: Steilster Abschnitt →</button>';
     document.getElementById('tpNext1').onclick=showStep2;
   }
+
+  // References for questions: steep path and gentle path
+  const steepPath=steepIs==='A'?pA:pB;
+  const gentlePath=steepIs==='A'?pB:pA;
+  const steepColor=steepIs==='A'?colorA:colorB;
+  const gentleColor=steepIs==='A'?colorB:colorA;
+  const steepName=steepIs==='A'?nameA:nameB;
+  const gentleName=steepIs==='A'?nameB:nameA;
+  const steepPts=steepIs==='A'?ptsA:ptsB;
+  const gentlePts=steepIs==='A'?ptsB:ptsA;
+  const steepN=steepPts.length,gentleN=gentlePts.length;
 
   function showStep2(){
     // Hide map and preview to focus on profile question
     document.getElementById('tp-map-card').style.display='none';
     profDiv.style.display='none';
-    // Determine if we ask for steepest uphill or downhill (pick whichever has a clear winner)
+    // Ask about steepest segment of the STEEP path
     let maxUp=0,maxUpIdx=0,maxDown=0,maxDownIdx=0;
-    for(let i=0;i<ptsA.length-1;i++){
-      const dAlt=ptsA[i+1].alt-ptsA[i].alt;
-      const dt=ptsA[i+1].t-ptsA[i].t;
+    for(let i=0;i<steepPts.length-1;i++){
+      const dAlt=steepPts[i+1].alt-steepPts[i].alt;
+      const dt=steepPts[i+1].t-steepPts[i].t;
       if(dAlt>0&&dAlt/dt>maxUp){maxUp=dAlt/dt;maxUpIdx=i;}
       if(dAlt<0&&(-dAlt)/dt>maxDown){maxDown=(-dAlt)/dt;maxDownIdx=i;}
     }
@@ -1239,14 +1258,14 @@ function renderTwoPaths(){
     const qText=askUphill?'steilsten <b>Anstieg</b> (bergauf)':'steilsten <b>Abstieg</b> (bergab)';
 
     let h='<div class="card" style="margin-top:8px;"><div class="card-title">Frage 2</div>';
-    h+='<div class="quiz-q">Wo hat <b>Weg '+nameA+'</b> den '+qText+'?</div>';
+    h+='<div class="quiz-q">Wo hat <b>Weg '+steepName+'</b> den '+qText+'?</div>';
     h+='<canvas id="profA2"></canvas>';
     h+='<div class="seg-row" id="steepRowA" style="margin-top:8px;">';
-    for(let i=0;i<NA-1;i++) h+='<button class="steep-btn" data-i="'+i+'">'+(i+1)+'→'+(i+2)+'</button>';
+    for(let i=0;i<steepN-1;i++) h+='<button class="steep-btn" data-i="'+i+'">'+(i+1)+'→'+(i+2)+'</button>';
     h+='</div><div id="tpFb2" style="margin-top:8px;"></div></div>';
     qDiv.innerHTML=h;
 
-    drawProfileWithMarkers(document.getElementById('profA2'),shape,minAlt,maxAlt,interval,pA,colorA,ptsA);
+    drawProfileWithMarkers(document.getElementById('profA2'),shape,minAlt,maxAlt,interval,steepPath,steepColor,steepPts);
 
     document.querySelectorAll('#steepRowA .steep-btn').forEach(b=>{
       b.onclick=()=>{
@@ -1264,19 +1283,19 @@ function renderTwoPaths(){
   }
 
   function showStep3(){
-    // Show profile B with numbered markers, ask for flattest segment
+    // Ask for flattest segment of the GENTLE path
     let h='<div class="card" style="margin-top:8px;"><div class="card-title">Frage 3</div>';
-    h+='<div class="quiz-q">Wo ist <b>Weg '+nameB+'</b> am <b>flachsten</b>?</div>';
+    h+='<div class="quiz-q">Wo ist <b>Weg '+gentleName+'</b> am <b>flachsten</b>?</div>';
     h+='<canvas id="profB2"></canvas>';
     h+='<div class="seg-row" id="flatRowB" style="margin-top:8px;">';
-    for(let i=0;i<NB-1;i++) h+='<button class="steep-btn" data-i="'+i+'">'+(i+1)+'→'+(i+2)+'</button>';
+    for(let i=0;i<gentleN-1;i++) h+='<button class="steep-btn" data-i="'+i+'">'+(i+1)+'→'+(i+2)+'</button>';
     h+='</div><div id="tpFb3" style="margin-top:8px;"></div></div>';
     qDiv.innerHTML=h;
 
-    drawProfileWithMarkers(document.getElementById('profB2'),shape,minAlt,maxAlt,interval,pB,colorB,ptsB);
+    drawProfileWithMarkers(document.getElementById('profB2'),shape,minAlt,maxAlt,interval,gentlePath,gentleColor,gentlePts);
     let minSl=Infinity,minIdx=0;
-    for(let i=0;i<ptsB.length-1;i++){
-      const sl=Math.abs(ptsB[i+1].alt-ptsB[i].alt)/(ptsB[i+1].t-ptsB[i].t);
+    for(let i=0;i<gentlePts.length-1;i++){
+      const sl=Math.abs(gentlePts[i+1].alt-gentlePts[i].alt)/(gentlePts[i+1].t-gentlePts[i].t);
       if(sl<minSl){minSl=sl;minIdx=i;}
     }
 
