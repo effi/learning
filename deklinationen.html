@@ -102,6 +102,11 @@
   .refHead{font-weight:700; font-size:14px; margin:16px 0 6px; color:var(--blue-d);}
   .refHead:first-child{margin-top:0;}
   .empty{text-align:center; color:var(--sub); padding:30px 10px; font-size:14px; line-height:1.6;}
+  .barRow{margin-bottom:10px;}
+  .barRow .lbl{display:flex; justify-content:space-between; font-size:13px; margin-bottom:4px;}
+  .barRow .lbl span:last-child{color:var(--sub); font-variant-numeric:tabular-nums;}
+  .barTrack{background:#eef0f6; border-radius:6px; height:9px; overflow:hidden;}
+  .barFill{height:100%; border-radius:6px;}
   /* Layover: vollständige Deklination */
   .modalWrap{position:fixed; inset:0; z-index:60; display:none; align-items:center; justify-content:center; padding:22px;}
   .modalWrap.show{display:flex;}
@@ -146,9 +151,22 @@
   <div class="rowline">Deklination (a/o/kons) erraten<div class="sw" id="swAskDekl" onclick="toggleAskDekl()"></div></div>
   <div class="miniNote">Deklinationstyp und Genus werden erst nach deiner Antwort angezeigt, nicht vorher.</div>
 
-  <h2>Statistik</h2>
+  <h2>Ergebnisse</h2>
   <div class="rowline"><span>Richtig / Falsch</span><b id="statsLine">0 / 0</b></div>
-  <button class="secondary" onclick="resetStats()">Statistik zurücksetzen</button>
+
+  <div class="miniNote" style="margin:10px 0 6px;">Kasus</div>
+  <div id="chartCasus"></div>
+  <div class="miniNote" style="margin:10px 0 6px;">Genus</div>
+  <div id="chartGenus"></div>
+  <div class="miniNote" style="margin:10px 0 6px;">Deklination</div>
+  <div id="chartDekl"></div>
+
+  <div class="miniNote" style="margin:14px 0 6px;">Top 5 schwierigste Wörter</div>
+  <div id="topWords"></div>
+
+  <div class="miniNote" style="margin:14px 0 6px;">Deine letzten Fehler (neueste zuerst)</div>
+  <div id="mistakesList"></div>
+  <button class="secondary" onclick="resetStats()">Ergebnisse zurücksetzen</button>
 </div>
 
 <div class="modalWrap" id="paraModalWrap" onclick="if(event.target===this) closeParadigm()">
@@ -274,6 +292,7 @@ const CASUS_LABEL = {nom:"Nominativ",gen:"Genitiv",dat:"Dativ",akk:"Akkusativ",a
 const CASUS_Q = {nom:"Wer/Was?",gen:"Wessen?",dat:"Wem?",akk:"Wen/Was?",abl:"Womit/Wodurch/Wo/Wovon?"};
 const NUM_LABEL = {sg:"Singular",pl:"Plural"};
 const GEN_LABEL = {m:"maskulin",f:"feminin",n:"neutrum"};
+const DEKL_SHORT = {a:"a-Dekl.", o:"o-Dekl.", kons:"kons-Dekl."};
 
 /* ---------------- Kasusfragen (wie Übung "Ablativverwendungen") ---------------- */
 const KASUS_QUESTIONS = [
@@ -383,9 +402,38 @@ function saveSettings(){
   }));
 }
 let stats = JSON.parse(localStorage.getItem("latein_stats")||'{"r":0,"f":0}');
+let mistakes = JSON.parse(localStorage.getItem("latein_mistakes")||'[]');
+let catStats = JSON.parse(localStorage.getItem("latein_catstats")||'{"casus":{},"genus":{},"dekl":{},"word":{}}');
+const MODE_LABEL = {bestimmen:"Bestimmen", formen:"Formen bilden", kasusfragen:"Kasusfragen", genitiv:"Genitiv-Sprint", vokabeln:"Vokabeln", luecken:"Lückensatz"};
 
 function saveStats(){ localStorage.setItem("latein_stats", JSON.stringify(stats)); }
-function resetStats(){ stats={r:0,f:0}; saveStats(); render(); }
+function saveMistakes(){
+  if(mistakes.length > 200) mistakes = mistakes.slice(mistakes.length-200);
+  localStorage.setItem("latein_mistakes", JSON.stringify(mistakes));
+}
+function logMistake(entry){
+  mistakes.push({...entry, ts: Date.now()});
+  saveMistakes();
+}
+function saveCatStats(){ localStorage.setItem("latein_catstats", JSON.stringify(catStats)); }
+function bump(bucket, key, ok){
+  if(!key) return;
+  if(!catStats[bucket][key]) catStats[bucket][key] = {r:0,f:0};
+  catStats[bucket][key][ok?"r":"f"]++;
+}
+function recordCategorized({ok, casus, genus, dekl, word}){
+  bump("casus", casus, ok);
+  bump("genus", genus, ok);
+  bump("dekl", dekl, ok);
+  bump("word", word, ok);
+  saveCatStats();
+}
+function resetStats(){
+  stats={r:0,f:0}; mistakes=[]; catStats={casus:{},genus:{},dekl:{},word:{}};
+  saveStats(); saveMistakes(); saveCatStats();
+  buildDrawer(); render();
+}
+function describePairs(pairs){ return pairs.map(p=>`${CASUS_LABEL[p.kasus]} ${NUM_LABEL[p.num]}`).join(", "); }
 
 function pool(){
   return VOCAB.filter(n => state.lekt.has(n.k) && state.dekl.has(n.d));
@@ -424,7 +472,60 @@ function buildDrawer(){
   });
   document.getElementById("statsLine").textContent = stats.r+" / "+stats.f;
   document.getElementById("swAskDekl").classList.toggle("on", state.askDekl);
+
+  renderBarChart("chartCasus", catStats.casus, CASUS_LABEL, ["nom","gen","dat","akk","abl"]);
+  renderBarChart("chartGenus", catStats.genus, GEN_LABEL, ["m","f","n"]);
+  renderBarChart("chartDekl", catStats.dekl, {a:"a-Deklination",o:"o-Deklination",kons:"kons-Deklination"}, ["a","o","kons"]);
+  renderTopWords();
+
+  const mDiv = document.getElementById("mistakesList");
+  if(!mistakes.length){
+    mDiv.innerHTML = `<div class="miniNote">Noch keine Fehler – weiter so! 🎉</div>`;
+  } else {
+    const recent = [...mistakes].reverse().slice(0,30);
+    mDiv.innerHTML = recent.map(m=>`
+      <div class="rowline" style="flex-direction:column;align-items:flex-start;border-bottom:1px solid var(--line);padding:9px 0;">
+        <div style="font-size:11px;color:var(--sub);text-transform:uppercase;letter-spacing:.3px;">${MODE_LABEL[m.mode]||m.mode}${m.lekt?" · L"+m.lekt:""}</div>
+        <div style="font-weight:700;font-size:14px;margin:2px 0 4px;">${m.context}</div>
+        <div style="font-size:13px;color:var(--red);">Du: ${m.given}</div>
+        <div style="font-size:13px;color:var(--green);">Richtig: ${m.correct}</div>
+      </div>`).join("");
+    if(mistakes.length>30) mDiv.innerHTML += `<div class="miniNote" style="margin-top:6px;">… und ${mistakes.length-30} weitere.</div>`;
+  }
 }
+function barColor(pct){ return pct>=75 ? "var(--green)" : pct>=45 ? "#f0a93b" : "var(--red)"; }
+
+function renderBarChart(elId, data, labelMap, order){
+  const el = document.getElementById(elId);
+  const keys = order.filter(k=>data[k] && (data[k].r+data[k].f)>0);
+  if(!keys.length){ el.innerHTML = `<div class="miniNote">Noch keine Daten.</div>`; return; }
+  el.innerHTML = keys.map(k=>{
+    const d = data[k], total = d.r+d.f, pct = Math.round((d.r/total)*100);
+    return `<div class="barRow">
+      <div class="lbl"><span>${labelMap[k]}</span><span>${d.r}/${total} (${pct}%)</span></div>
+      <div class="barTrack"><div class="barFill" style="width:${pct}%;background:${barColor(pct)};"></div></div>
+    </div>`;
+  }).join("");
+}
+
+function renderTopWords(){
+  const el = document.getElementById("topWords");
+  const entries = Object.keys(catStats.word)
+    .map(w=>({word:w, ...catStats.word[w], total: catStats.word[w].r+catStats.word[w].f}))
+    .filter(e=>e.f>0)
+    .sort((a,b)=> b.f - a.f || (a.r/a.total) - (b.r/b.total))
+    .slice(0,5);
+  if(!entries.length){ el.innerHTML = `<div class="miniNote">Noch keine Daten.</div>`; return; }
+  el.innerHTML = entries.map(e=>{
+    const n = VOCAB.find(x=>x.l===e.word);
+    const pct = Math.round((e.r/e.total)*100);
+    return `<div class="barRow">
+      <div class="lbl"><span><b>${e.word}</b>${n?" — "+n.de:""}</span><span>${e.f}✗ / ${e.total}</span></div>
+      <div class="barTrack"><div class="barFill" style="width:${pct}%;background:${barColor(pct)};"></div></div>
+    </div>`;
+  }).join("");
+}
+
 function toggleLekt(i){ state.lekt.has(i)?state.lekt.delete(i):state.lekt.add(i); if(state.lekt.size===0) state.lekt.add(i); saveSettings(); buildDrawer(); }
 function toggleDekl(k){ state.dekl.has(k)?state.dekl.delete(k):state.dekl.add(k); if(state.dekl.size===0) state.dekl.add(k); saveSettings(); buildDrawer(); }
 function toggleCas(c){ state.cas.has(c)?state.cas.delete(c):state.cas.add(c); if(state.cas.size===0) state.cas.add(c); saveSettings(); buildDrawer(); }
@@ -492,7 +593,15 @@ function submitBestimmen(){
 
   state.finalPairs = pairs; state.finalMissing = missing; state.finalExtra = extra;
   state.answered = true;
-  if(ok) stats.r++; else stats.f++;
+  recordCategorized({ok, casus:c.kasus, genus:c.n.g, dekl:c.n.d, word:c.n.l});
+  if(ok){
+    stats.r++;
+  } else {
+    stats.f++;
+    const givenDesc = `${describePairs(pairs)}, ${GEN_LABEL[state.selGen]}${state.askDekl?", "+DEKL_SHORT[state.selDekl]:""}`;
+    const correctDesc = `${describePairs(c.matches)}, ${GEN_LABEL[c.n.g]}${state.askDekl?", "+DEKL_SHORT[c.n.d]:""}`;
+    logMistake({mode:"bestimmen", lekt:c.n.k, context:c.form, given:givenDesc, correct:correctDesc});
+  }
   saveStats();
   render();
 }
@@ -535,8 +644,33 @@ function selectOption(idx){
   const c = state.current;
   state.selectedIdx = idx;
   state.answered = true;
-  const ok = c.options[idx] === c.correct;
-  if(ok) stats.r++; else stats.f++;
+  const given = c.options[idx];
+  const ok = given === c.correct;
+
+  let context = "", lekt = null, casus = null, genus = null, dekl = null, word = null;
+  if(state.tab==="formen"){
+    context = `${c.n.l} (${CASUS_LABEL[c.kasus]} ${NUM_LABEL[c.num]})`; lekt = c.n.k;
+    casus=c.kasus; genus=c.n.g; dekl=c.n.d; word=c.n.l;
+  } else if(state.tab==="kasusfragen"){
+    context = c.q.frage; casus = c.q.kasus;
+  } else if(state.tab==="genitiv"){
+    context = `${c.n.l} (Genitiv Sg.)`; lekt = c.n.k;
+    casus="gen"; genus=c.n.g; dekl=c.n.d; word=c.n.l;
+  } else if(state.tab==="vokabeln"){
+    context = c.direction==="lat2de" ? c.n.l : germanForm(c.n,"nom","sg"); lekt = c.n.k;
+    word = c.n.l;
+  } else if(state.tab==="luecken"){
+    context = c.item.tmpl; lekt = c.n.k;
+    casus=c.item.kasus; genus=c.n.g; dekl=c.n.d; word=c.n.l;
+  }
+  recordCategorized({ok, casus, genus, dekl, word});
+
+  if(ok){
+    stats.r++;
+  } else {
+    stats.f++;
+    logMistake({mode:state.tab, lekt, context, given, correct:c.correct});
+  }
   saveStats();
   render();
 }
@@ -687,7 +821,6 @@ function renderBestimmen(){
     }
     return `<div class="${cls}" onclick="selectGen('${k}')">${GEN_LABEL[k]}</div>`;
   }).join("");
-  const DEKL_SHORT = {a:"a-Dekl.", o:"o-Dekl.", kons:"kons-Dekl."};
   let deklBtns = ["a","o","kons"].map(k=>{
     let cls="opt"+(state.selDekl===k?" sel":"");
     if(state.answered){
