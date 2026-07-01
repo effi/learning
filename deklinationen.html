@@ -164,6 +164,9 @@
   <div class="miniNote" style="margin:14px 0 6px;">Top 5 schwierigste Wörter</div>
   <div id="topWords"></div>
 
+  <div class="miniNote" style="margin:14px 0 6px;">Top 5 schwierigste Formen</div>
+  <div id="topForms"></div>
+
   <div class="miniNote" style="margin:14px 0 6px;">Deine letzten Fehler (neueste zuerst)</div>
   <div id="mistakesList"></div>
   <button class="secondary" onclick="resetStats()">Ergebnisse zurücksetzen</button>
@@ -403,7 +406,8 @@ function saveSettings(){
 }
 let stats = JSON.parse(localStorage.getItem("latein_stats")||'{"r":0,"f":0}');
 let mistakes = JSON.parse(localStorage.getItem("latein_mistakes")||'[]');
-let catStats = JSON.parse(localStorage.getItem("latein_catstats")||'{"casus":{},"genus":{},"dekl":{},"word":{}}');
+let catStats = JSON.parse(localStorage.getItem("latein_catstats")||'{"casus":{},"genus":{},"dekl":{},"word":{},"form":{}}');
+if(!catStats.form) catStats.form = {};
 const MODE_LABEL = {bestimmen:"Bestimmen", formen:"Formen bilden", kasusfragen:"Kasusfragen", genitiv:"Genitiv-Sprint", vokabeln:"Vokabeln", luecken:"Lückensatz"};
 
 function saveStats(){ localStorage.setItem("latein_stats", JSON.stringify(stats)); }
@@ -421,15 +425,16 @@ function bump(bucket, key, ok){
   if(!catStats[bucket][key]) catStats[bucket][key] = {r:0,f:0};
   catStats[bucket][key][ok?"r":"f"]++;
 }
-function recordCategorized({ok, casus, genus, dekl, word}){
+function recordCategorized({ok, casus, genus, dekl, word, num}){
   bump("casus", casus, ok);
   bump("genus", genus, ok);
   bump("dekl", dekl, ok);
   bump("word", word, ok);
+  if(casus && num) bump("form", casus+"_"+num, ok);
   saveCatStats();
 }
 function resetStats(){
-  stats={r:0,f:0}; mistakes=[]; catStats={casus:{},genus:{},dekl:{},word:{}};
+  stats={r:0,f:0}; mistakes=[]; catStats={casus:{},genus:{},dekl:{},word:{},form:{}};
   saveStats(); saveMistakes(); saveCatStats();
   buildDrawer(); render();
 }
@@ -477,6 +482,7 @@ function buildDrawer(){
   renderBarChart("chartGenus", catStats.genus, GEN_LABEL, ["m","f","n"]);
   renderBarChart("chartDekl", catStats.dekl, {a:"a-Deklination",o:"o-Deklination",kons:"kons-Deklination"}, ["a","o","kons"]);
   renderTopWords();
+  renderTopForms();
 
   const mDiv = document.getElementById("mistakesList");
   if(!mistakes.length){
@@ -521,6 +527,23 @@ function renderTopWords(){
     const pct = Math.round((e.r/e.total)*100);
     return `<div class="barRow">
       <div class="lbl"><span><b>${e.word}</b>${n?" — "+n.de:""}</span><span>${e.f}✗ / ${e.total}</span></div>
+      <div class="barTrack"><div class="barFill" style="width:${pct}%;background:${barColor(pct)};"></div></div>
+    </div>`;
+  }).join("");
+}
+
+function renderTopForms(){
+  const el = document.getElementById("topForms");
+  const entries = Object.keys(catStats.form)
+    .map(key=>{ const [kasus,num] = key.split("_"); return {kasus, num, ...catStats.form[key], total: catStats.form[key].r+catStats.form[key].f}; })
+    .filter(e=>e.f>0)
+    .sort((a,b)=> b.f - a.f || (a.r/a.total) - (b.r/b.total))
+    .slice(0,5);
+  if(!entries.length){ el.innerHTML = `<div class="miniNote">Noch keine Daten.</div>`; return; }
+  el.innerHTML = entries.map(e=>{
+    const pct = Math.round((e.r/e.total)*100);
+    return `<div class="barRow">
+      <div class="lbl"><span><b>${CASUS_LABEL[e.kasus]} ${NUM_LABEL[e.num]}</b></span><span>${e.f}✗ / ${e.total}</span></div>
       <div class="barTrack"><div class="barFill" style="width:${pct}%;background:${barColor(pct)};"></div></div>
     </div>`;
   }).join("");
@@ -593,7 +616,7 @@ function submitBestimmen(){
 
   state.finalPairs = pairs; state.finalMissing = missing; state.finalExtra = extra;
   state.answered = true;
-  recordCategorized({ok, casus:c.kasus, genus:c.n.g, dekl:c.n.d, word:c.n.l});
+  recordCategorized({ok, casus:c.kasus, genus:c.n.g, dekl:c.n.d, word:c.n.l, num:c.num});
   if(ok){
     stats.r++;
   } else {
@@ -647,23 +670,23 @@ function selectOption(idx){
   const given = c.options[idx];
   const ok = given === c.correct;
 
-  let context = "", lekt = null, casus = null, genus = null, dekl = null, word = null;
+  let context = "", lekt = null, casus = null, genus = null, dekl = null, word = null, num = null;
   if(state.tab==="formen"){
     context = `${c.n.l} (${CASUS_LABEL[c.kasus]} ${NUM_LABEL[c.num]})`; lekt = c.n.k;
-    casus=c.kasus; genus=c.n.g; dekl=c.n.d; word=c.n.l;
+    casus=c.kasus; genus=c.n.g; dekl=c.n.d; word=c.n.l; num=c.num;
   } else if(state.tab==="kasusfragen"){
     context = c.q.frage; casus = c.q.kasus;
   } else if(state.tab==="genitiv"){
     context = `${c.n.l} (Genitiv Sg.)`; lekt = c.n.k;
-    casus="gen"; genus=c.n.g; dekl=c.n.d; word=c.n.l;
+    casus="gen"; genus=c.n.g; dekl=c.n.d; word=c.n.l; num="sg";
   } else if(state.tab==="vokabeln"){
     context = c.direction==="lat2de" ? c.n.l : germanForm(c.n,"nom","sg"); lekt = c.n.k;
     word = c.n.l;
   } else if(state.tab==="luecken"){
     context = c.item.tmpl; lekt = c.n.k;
-    casus=c.item.kasus; genus=c.n.g; dekl=c.n.d; word=c.n.l;
+    casus=c.item.kasus; genus=c.n.g; dekl=c.n.d; word=c.n.l; num=c.item.num;
   }
-  recordCategorized({ok, casus, genus, dekl, word});
+  recordCategorized({ok, casus, genus, dekl, word, num});
 
   if(ok){
     stats.r++;
