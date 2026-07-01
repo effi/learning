@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Latein">
+<title>Latein Deklinationen</title>
+<style>
+  :root{
+    --blue:#0a6ee6; --blue-d:#0655b8;
+    --green:#1fae5c; --green-bg:#e7faf0;
+    --red:#e0453c; --red-bg:#fdeceb;
+    --bg:#f2f3f7; --card:#ffffff; --ink:#1c2130; --sub:#68708a;
+    --line:#e6e8ef; --radius:16px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Segoe UI,Roboto,sans-serif;
+    padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom);
+    -webkit-user-select:none; user-select:none;
+  }
+  header{
+    position:sticky; top:0; z-index:20; background:rgba(242,243,247,.92); backdrop-filter:blur(10px);
+    padding:14px 16px 10px; border-bottom:1px solid var(--line);
+  }
+  h1{font-size:19px; margin:0 0 10px; font-weight:700; letter-spacing:-.2px;}
+  .tabs{display:flex; gap:6px; background:#e4e6ee; border-radius:12px; padding:3px; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none;}
+  .tabs::-webkit-scrollbar{display:none;}
+  .tab{flex:0 0 auto; text-align:center; padding:8px 12px; border-radius:9px; font-size:13px; font-weight:600; color:var(--sub); white-space:nowrap;}
+  .tab.active{background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.12);}
+  .settingsBtn{position:absolute; right:16px; top:14px; font-size:20px; color:var(--sub); background:none; border:none; padding:4px;}
+  main{padding:16px; max-width:520px; margin:0 auto; padding-bottom:60px;}
+  .card{background:var(--card); border-radius:var(--radius); padding:18px; box-shadow:0 1px 2px rgba(20,20,40,.05); margin-bottom:14px;}
+  .stats{display:flex; gap:10px; font-size:12px; color:var(--sub); margin-bottom:10px;}
+  .stats b{color:var(--ink);}
+  .chip{padding:3px 9px; border-radius:20px; background:#eef0f6;}
+  .prompt-label{font-size:12px; color:var(--sub); font-weight:600; text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px;}
+  .latinWord{font-size:34px; font-weight:700; text-align:center; margin:6px 0 4px; color:var(--blue-d); letter-spacing:-.5px;}
+  .meaning{text-align:center; color:var(--sub); font-size:14px; margin-bottom:16px;}
+  .lektTag{text-align:center; font-size:11px; color:var(--sub); margin-bottom:14px;}
+  .grp{margin-bottom:14px;}
+  .grp-label{font-size:12px; color:var(--sub); font-weight:600; margin-bottom:6px;}
+  .btnrow{display:flex; flex-wrap:wrap; gap:8px;}
+  .opt{
+    flex:1 1 auto; min-width:64px; padding:11px 6px; text-align:center; border-radius:12px;
+    background:#eef0f6; border:2px solid transparent; font-size:14px; font-weight:600; color:var(--ink);
+  }
+  .opt.sel{border-color:var(--blue); background:#e5f0fe; color:var(--blue-d);}
+  .opt.correct{background:var(--green-bg); border-color:var(--green); color:var(--green);}
+  .opt.wrong{background:var(--red-bg); border-color:var(--red); color:var(--red);}
+  .mcOpt{
+    width:100%; text-align:center; padding:15px; border-radius:12px; background:#eef0f6;
+    font-size:20px; font-weight:700; border:2px solid transparent; margin-bottom:9px; color:var(--ink);
+  }
+  .mcOpt.correct{background:var(--green-bg); border-color:var(--green); color:var(--green);}
+  .mcOpt.wrong{background:var(--red-bg); border-color:var(--red); color:var(--red);}
+  .askrow{display:flex; justify-content:center; gap:8px; margin-bottom:16px;}
+  .askchip{padding:6px 14px; border-radius:20px; background:#e5f0fe; color:var(--blue-d); font-weight:700; font-size:13px;}
+  .primary{
+    display:block; width:100%; padding:15px; border-radius:14px; background:var(--blue); color:#fff;
+    font-size:16px; font-weight:700; border:none; text-align:center; margin-top:6px;
+  }
+  .primary:disabled{background:#c7cede;}
+  .secondary:disabled{opacity:.4;}
+  .secondary{
+    display:block; width:100%; padding:13px; border-radius:14px; background:#eef0f6; color:var(--ink);
+    font-size:15px; font-weight:600; border:none; text-align:center; margin-top:8px;
+  }
+  .feedback{border-radius:14px; padding:14px 16px; margin-top:14px; font-size:14px; line-height:1.5;}
+  .feedback.ok{background:var(--green-bg); color:#0f7a3c;}
+  .feedback.bad{background:var(--red-bg); color:#a8271f;}
+  .feedback b{display:block; margin-bottom:4px; font-size:15px;}
+  .feedback .why{margin-top:8px; color:var(--ink); opacity:.85;}
+  .feedback .trans{margin-top:8px; font-style:italic; color:var(--ink); opacity:.75; font-size:13px;}
+  /* settings drawer */
+  .overlay{position:fixed; inset:0; background:rgba(20,22,35,.4); z-index:40; display:none;}
+  .overlay.show{display:block;}
+  .drawer{
+    position:fixed; right:0; top:0; bottom:0; width:86%; max-width:360px; background:#fff; z-index:50;
+    transform:translateX(100%); transition:transform .25s ease; overflow-y:auto;
+    padding:calc(env(safe-area-inset-top) + 16px) 18px 24px;
+  }
+  .drawer.show{transform:translateX(0);}
+  .drawer h2{font-size:16px; margin:18px 0 8px;}
+  .drawer h2:first-child{margin-top:0;}
+  .rowline{display:flex; align-items:center; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--line); font-size:14px;}
+  .sw{position:relative; width:44px; height:26px; border-radius:16px; background:#d8dae4;}
+  .sw.on{background:var(--green);}
+  .sw::after{content:''; position:absolute; top:2px; left:2px; width:22px; height:22px; border-radius:50%; background:#fff; transition:.15s; box-shadow:0 1px 3px rgba(0,0,0,.3);}
+  .sw.on::after{left:20px;}
+  .drawer .closeX{position:absolute; top:calc(env(safe-area-inset-top) + 14px); right:14px; font-size:22px; color:var(--sub); background:none; border:none;}
+  .miniNote{font-size:12px; color:var(--sub); margin-top:4px; line-height:1.4;}
+  /* reference tables */
+  .refTable{width:100%; border-collapse:collapse; font-size:13px; margin-bottom:6px;}
+  .refTable th,.refTable td{padding:6px 4px; text-align:center; border-bottom:1px solid var(--line);}
+  .refTable th{color:var(--sub); font-weight:600; font-size:11px; text-transform:uppercase;}
+  .refTable td:first-child{text-align:left; color:var(--sub); font-weight:600;}
+  .refHead{font-weight:700; font-size:14px; margin:16px 0 6px; color:var(--blue-d);}
+  .refHead:first-child{margin-top:0;}
+  .empty{text-align:center; color:var(--sub); padding:30px 10px; font-size:14px; line-height:1.6;}
+  /* Layover: vollständige Deklination */
+  .modalWrap{position:fixed; inset:0; z-index:60; display:none; align-items:center; justify-content:center; padding:22px;}
+  .modalWrap.show{display:flex;}
+  .modalWrap::before{content:''; position:absolute; inset:0; background:rgba(20,22,35,.45);}
+  .modalCard{position:relative; background:#fff; border-radius:18px; padding:22px 20px 18px; max-width:420px; width:100%; max-height:82vh; overflow-y:auto;}
+  .modalClose{position:absolute; top:10px; right:12px; font-size:20px; color:var(--sub); background:none; border:none; padding:6px;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Latein · Deklinationen</h1>
+  <button class="settingsBtn" onclick="openDrawer()">⚙︎</button>
+  <div class="tabs">
+    <div class="tab active" data-tab="bestimmen" onclick="switchTab('bestimmen')">Bestimmen</div>
+    <div class="tab" data-tab="formen" onclick="switchTab('formen')">Formen bilden</div>
+    <div class="tab" data-tab="kasusfragen" onclick="switchTab('kasusfragen')">Kasusfragen</div>
+    <div class="tab" data-tab="genitiv" onclick="switchTab('genitiv')">Genitiv-Sprint</div>
+    <div class="tab" data-tab="vokabeln" onclick="switchTab('vokabeln')">Vokabeln</div>
+    <div class="tab" data-tab="luecken" onclick="switchTab('luecken')">Lückensatz</div>
+    <div class="tab" data-tab="tabellen" onclick="switchTab('tabellen')">Tabellen</div>
+  </div>
+</header>
+
+<main id="main"></main>
+
+<div class="overlay" id="overlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <button class="closeX" onclick="closeDrawer()">✕</button>
+
+  <h2>Lektionen</h2>
+  <div id="lektList"></div>
+
+  <h2>Deklinationen</h2>
+  <div id="deklList"></div>
+
+  <h2>Kasus abfragen</h2>
+  <div id="casusList"></div>
+  <div class="miniNote">Dativ ist optional (in deinen Übungen bisher nicht im Fokus).</div>
+
+  <h2>Im Quiz zusätzlich abfragen</h2>
+  <div class="rowline">Deklination (a/o/kons) erraten<div class="sw" id="swAskDekl" onclick="toggleAskDekl()"></div></div>
+  <div class="miniNote">Deklinationstyp und Genus werden erst nach deiner Antwort angezeigt, nicht vorher.</div>
+
+  <h2>Statistik</h2>
+  <div class="rowline"><span>Richtig / Falsch</span><b id="statsLine">0 / 0</b></div>
+  <button class="secondary" onclick="resetStats()">Statistik zurücksetzen</button>
+</div>
+
+<div class="modalWrap" id="paraModalWrap" onclick="if(event.target===this) closeParadigm()">
+  <div class="modalCard" id="paraModalCard"></div>
+</div>
+
+<script>
+/* ---------------- Vokabeldaten (Lektion 1-8) ---------------- */
+// l=Nominativ Sg, s=Stamm, g=lat. Genus, d=Deklination(a/o/kons), k=Lektion,
+// de=dt. Bedeutung, dg=dt. Genus, w=schwache dt. Deklination(1/0), dp=dt. Plural, pt=nur Plural(1/0)
+const VOCAB = [
+{l:"familia",s:"famili",g:"f",d:"a",k:1,de:"Hausgemeinschaft",dg:"f",w:0,dp:"Hausgemeinschaften"},
+{l:"clāmor",s:"clāmōr",g:"m",d:"kons",k:1,de:"Lärm",dg:"m",w:0,dp:"Lärme"},
+{l:"pater",s:"patr",g:"m",d:"kons",k:1,de:"Vater",dg:"m",w:0,dp:"Väter"},
+{l:"māter",s:"mātr",g:"f",d:"kons",k:1,de:"Mutter",dg:"f",w:0,dp:"Mütter"},
+{l:"filius",s:"fili",g:"m",d:"o",k:1,de:"Sohn",dg:"m",w:0,dp:"Söhne"},
+{l:"filia",s:"fili",g:"f",d:"a",k:1,de:"Tochter",dg:"f",w:0,dp:"Töchter"},
+{l:"avus",s:"av",g:"m",d:"o",k:1,de:"Großvater",dg:"m",w:0,dp:"Großväter"},
+{l:"servus",s:"serv",g:"m",d:"o",k:1,de:"Sklave",dg:"m",w:1,dp:"Sklaven"},
+{l:"serva",s:"serv",g:"f",d:"a",k:1,de:"Sklavin",dg:"f",w:0,dp:"Sklavinnen"},
+{l:"catella",s:"catell",g:"f",d:"a",k:1,de:"Hündchen",dg:"n",w:0,dp:"Hündchen"},
+{l:"dominus",s:"domin",g:"m",d:"o",k:1,de:"Herr",dg:"m",w:0,dp:"Herren"},
+{l:"domina",s:"domin",g:"f",d:"a",k:1,de:"Herrin",dg:"f",w:0,dp:"Herrinnen"},
+
+{l:"soror",s:"sorōr",g:"f",d:"kons",k:2,de:"Schwester",dg:"f",w:0,dp:"Schwestern"},
+{l:"puer",s:"puer",g:"m",d:"o",k:2,de:"Junge",dg:"m",w:1,dp:"Jungen"},
+{l:"puella",s:"puell",g:"f",d:"a",k:2,de:"Mädchen",dg:"n",w:0,dp:"Mädchen"},
+{l:"frāter",s:"frātr",g:"m",d:"kons",k:2,de:"Bruder",dg:"m",w:0,dp:"Brüder"},
+{l:"culīna",s:"culīn",g:"f",d:"a",k:2,de:"Küche",dg:"f",w:0,dp:"Küchen"},
+{l:"līberī",s:"līber",g:"m",d:"o",k:2,de:"Kinder",dg:"n",w:0,dp:"Kinder",pt:1},
+{l:"vir",s:"vir",g:"m",d:"o",k:2,de:"Mann",dg:"m",w:0,dp:"Männer"},
+{l:"ātrium",s:"ātri",g:"n",d:"o",k:2,de:"Atrium",dg:"n",w:0,dp:"Atrien"},
+{l:"ōtium",s:"ōti",g:"n",d:"o",k:2,de:"Freizeit",dg:"f",w:0,dp:"Freizeiten"},
+
+{l:"equus",s:"equ",g:"m",d:"o",k:3,de:"Pferd",dg:"n",w:0,dp:"Pferde"},
+{l:"lepus",s:"lepor",g:"m",d:"kons",k:3,de:"Hase",dg:"m",w:1,dp:"Hasen"},
+{l:"canis",s:"can",g:"m",d:"kons",k:3,de:"Hund",dg:"m",w:0,dp:"Hunde"},
+{l:"bōs",s:"bov",g:"m",d:"kons",k:3,de:"Ochse",dg:"m",w:1,dp:"Ochsen"},
+{l:"vīlla",s:"vīll",g:"f",d:"a",k:3,de:"Landhaus",dg:"n",w:0,dp:"Landhäuser"},
+{l:"uxor",s:"uxōr",g:"f",d:"kons",k:3,de:"Ehefrau",dg:"f",w:0,dp:"Ehefrauen"},
+{l:"cēna",s:"cēn",g:"f",d:"a",k:3,de:"Mahlzeit",dg:"f",w:0,dp:"Mahlzeiten"},
+
+{l:"schola",s:"schol",g:"f",d:"a",k:4,de:"Schule",dg:"f",w:0,dp:"Schulen"},
+{l:"magister",s:"magistr",g:"m",d:"o",k:4,de:"Lehrer",dg:"m",w:0,dp:"Lehrer"},
+{l:"mūnus",s:"mūner",g:"n",d:"kons",k:4,de:"Aufgabe",dg:"f",w:0,dp:"Aufgaben"},
+{l:"discipulus",s:"discipul",g:"m",d:"o",k:4,de:"Schüler",dg:"m",w:0,dp:"Schüler"},
+{l:"discipula",s:"discipul",g:"f",d:"a",k:4,de:"Schülerin",dg:"f",w:0,dp:"Schülerinnen"},
+{l:"onus",s:"oner",g:"n",d:"kons",k:4,de:"Last",dg:"f",w:0,dp:"Lasten"},
+
+{l:"forum",s:"for",g:"n",d:"o",k:5,de:"Marktplatz",dg:"m",w:0,dp:"Marktplätze"},
+{l:"monumentum",s:"monument",g:"n",d:"o",k:5,de:"Denkmal",dg:"n",w:0,dp:"Denkmäler"},
+{l:"statua",s:"statu",g:"f",d:"a",k:5,de:"Statue",dg:"f",w:0,dp:"Statuen"},
+{l:"homō",s:"homin",g:"m",d:"kons",k:5,de:"Mensch",dg:"m",w:1,dp:"Menschen"},
+{l:"amīcus",s:"amīc",g:"m",d:"o",k:5,de:"Freund",dg:"m",w:0,dp:"Freunde"},
+{l:"amīca",s:"amīc",g:"f",d:"a",k:5,de:"Freundin",dg:"f",w:0,dp:"Freundinnen"},
+{l:"dōnum",s:"dōn",g:"n",d:"o",k:5,de:"Geschenk",dg:"n",w:0,dp:"Geschenke"},
+{l:"fūr",s:"fūr",g:"m",d:"kons",k:5,de:"Dieb",dg:"m",w:0,dp:"Diebe"},
+
+{l:"mors",s:"mort",g:"f",d:"kons",k:6,de:"Tod",dg:"m",w:0,dp:"Tode"},
+{l:"spectātor",s:"spectātōr",g:"m",d:"kons",k:6,de:"Zuschauer",dg:"m",w:0,dp:"Zuschauer"},
+{l:"agitātor",s:"agitātōr",g:"m",d:"kons",k:6,de:"Wagenlenker",dg:"m",w:0,dp:"Wagenlenker"},
+{l:"tunica",s:"tunic",g:"f",d:"a",k:6,de:"Tunika",dg:"f",w:0,dp:"Tuniken"},
+{l:"verbum",s:"verb",g:"n",d:"o",k:6,de:"Wort",dg:"n",w:0,dp:"Wörter"},
+
+{l:"thermae",s:"therm",g:"f",d:"a",k:7,de:"Thermen",dg:"f",w:0,dp:"Thermen",pt:1},
+{l:"toga",s:"tog",g:"f",d:"a",k:7,de:"Toga",dg:"f",w:0,dp:"Togen"},
+{l:"vestis",s:"vest",g:"f",d:"kons",k:7,de:"Kleidung",dg:"f",w:0,dp:"Kleider"},
+{l:"hōra",s:"hōr",g:"f",d:"a",k:7,de:"Stunde",dg:"f",w:0,dp:"Stunden"},
+{l:"silentium",s:"silenti",g:"n",d:"o",k:7,de:"Stille",dg:"f",w:0,dp:"Stillen"},
+{l:"aqua",s:"aqu",g:"f",d:"a",k:7,de:"Wasser",dg:"n",w:0,dp:"Wasser"},
+
+{l:"vōx",s:"vōc",g:"f",d:"kons",k:8,de:"Stimme",dg:"f",w:0,dp:"Stimmen"},
+{l:"patrōnus",s:"patrōn",g:"m",d:"o",k:8,de:"Schutzherr",dg:"m",w:0,dp:"Schutzherren"},
+{l:"sermō",s:"sermōn",g:"m",d:"kons",k:8,de:"Gespräch",dg:"n",w:0,dp:"Gespräche"},
+{l:"cōnsilium",s:"cōnsili",g:"n",d:"o",k:8,de:"Rat",dg:"m",w:0,dp:"Räte"},
+{l:"aestās",s:"aestāt",g:"f",d:"kons",k:8,de:"Sommer",dg:"m",w:0,dp:"Sommer"},
+{l:"secūtor",s:"secūtōr",g:"m",d:"kons",k:8,de:"Verfolger",dg:"m",w:0,dp:"Verfolger"},
+{l:"porta",s:"port",g:"f",d:"a",k:8,de:"Tor",dg:"n",w:0,dp:"Tore"},
+{l:"rētiārius",s:"rētiāri",g:"m",d:"o",k:8,de:"Netzkämpfer",dg:"m",w:0,dp:"Netzkämpfer"},
+{l:"arēna",s:"arēn",g:"f",d:"a",k:8,de:"Arena",dg:"f",w:0,dp:"Arenen"},
+{l:"gladiātor",s:"gladiātōr",g:"m",d:"kons",k:8,de:"Gladiator",dg:"m",w:0,dp:"Gladiatoren"}
+];
+
+/* ---------------- Deklinationstabellen ---------------- */
+const ENDINGS = {
+  a:      {sg:{gen:"ae",dat:"ae",akk:"am",abl:"ā"},   pl:{nom:"ae", gen:"ārum",dat:"īs",  akk:"ās", abl:"īs"}},
+  o_m:    {sg:{gen:"ī", dat:"ō", akk:"um",abl:"ō"},   pl:{nom:"ī", gen:"ōrum",dat:"īs",  akk:"ōs", abl:"īs"}},
+  o_n:    {sg:{gen:"ī", dat:"ō", akk:null,abl:"ō"},   pl:{nom:"a", gen:"ōrum",dat:"īs",  akk:null, abl:"īs"}},
+  kons:   {sg:{gen:"is",dat:"ī", akk:"em",abl:"e"},   pl:{nom:"ēs",gen:"um",  dat:"ibus",akk:"ēs", abl:"ibus"}},
+  kons_n: {sg:{gen:"is",dat:"ī", akk:null,abl:"e"},   pl:{nom:"a", gen:"um",  dat:"ibus",akk:null, abl:"ibus"}}
+};
+const DECL_INFO = {
+  a:      {name:"a-Deklination", tip:"fast immer feminin. Erkennbar am Nominativ auf -a. Genitiv/Dativ Sg. auf -ae, Akkusativ Sg. auf -am, Ablativ Sg. auf -ā (langes a!)."},
+  o_m:    {name:"o-Deklination (maskulin)", tip:"Nominativ meist auf -us (manchmal -er, z. B. puer, vir, magister). Genitiv Sg. auf -ī, Akkusativ Sg. auf -um, Ablativ Sg. auf -ō."},
+  o_n:    {name:"o-Deklination (neutrum)", tip:"Nominativ auf -um. Akkusativ ist immer identisch mit dem Nominativ. Nominativ/Akkusativ Plural enden auf -a."},
+  kons:   {name:"konsonantische Deklination", tip:"Nominativ Sg. ist unregelmäßig – am sichersten erkennst du diese Deklination am Genitiv Sg. auf -is. Akkusativ Sg. auf -em, Ablativ Sg. auf -e."},
+  kons_n: {name:"konsonantische Deklination (neutrum)", tip:"Genitiv Sg. auf -is. Akkusativ ist immer identisch mit dem Nominativ. Nominativ/Akkusativ Plural enden auf -a."}
+};
+function declKey(n){ if(n.d==="a") return "a"; if(n.d==="o") return n.g==="n"?"o_n":"o_m"; return n.g==="n"?"kons_n":"kons"; }
+
+function paradigm(n){
+  const key = declKey(n), t = ENDINGS[key], f = {};
+  f.sg_nom = n.l;
+  f.pl_nom = n.s + t.pl.nom;
+  ["gen","dat","akk","abl"].forEach(c=>{
+    f["sg_"+c] = t.sg[c]===null ? f.sg_nom : n.s + t.sg[c];
+    f["pl_"+c] = t.pl[c]===null ? f.pl_nom : n.s + t.pl[c];
+  });
+  return f;
+}
+
+const CASUS_LABEL = {nom:"Nominativ",gen:"Genitiv",dat:"Dativ",akk:"Akkusativ",abl:"Ablativ"};
+const CASUS_Q = {nom:"Wer/Was?",gen:"Wessen?",dat:"Wem?",akk:"Wen/Was?",abl:"Womit/Wodurch/Wo/Wovon?"};
+const NUM_LABEL = {sg:"Singular",pl:"Plural"};
+const GEN_LABEL = {m:"maskulin",f:"feminin",n:"neutrum"};
+
+/* ---------------- Kasusfragen (wie Übung "Ablativverwendungen") ---------------- */
+const KASUS_QUESTIONS = [
+  {kasus:"nom", frage:"Wer? / Was? (Subjekt)"},
+  {kasus:"gen", frage:"Wessen?"},
+  {kasus:"dat", frage:"Wem?"},
+  {kasus:"akk", frage:"Wen? / Was?"},
+  {kasus:"abl", frage:"Wann? (Ablativus temporis)"},
+  {kasus:"abl", frage:"Womit? / Wodurch? (Ablativus instrumentalis)"},
+  {kasus:"abl", frage:"Mit wem? (Ablativus sociativus)"},
+  {kasus:"abl", frage:"Wo? (Ablativus loci)"},
+  {kasus:"abl", frage:"Woher? (Ablativus der Herkunft)"}
+];
+
+/* ---------------- Lückensatz ---------------- */
+// word = Nominativ Singular (Schlüssel in VOCAB), kasus/num = gesuchte Form, tmpl mit "___" als Lücke
+const LUECKEN = [
+  {word:"puer",       kasus:"akk", num:"sg", tmpl:"Puella ___ videt.",              trans:"Das Mädchen sieht den Jungen."},
+  {word:"servus",     kasus:"nom", num:"sg", tmpl:"___ in vīllā labōrat.",           trans:"Der Sklave arbeitet im Landhaus."},
+  {word:"servus",     kasus:"akk", num:"sg", tmpl:"Dominus ___ vocat.",              trans:"Der Herr ruft den Sklaven."},
+  {word:"puella",     kasus:"nom", num:"pl", tmpl:"___ rīdent.",                     trans:"Die Mädchen lachen."},
+  {word:"filia",      kasus:"akk", num:"sg", tmpl:"Māter ___ amat.",                 trans:"Die Mutter liebt die Tochter."},
+  {word:"clāmor",     kasus:"akk", num:"sg", tmpl:"Puer ___ audit.",                 trans:"Der Junge hört den Lärm."},
+  {word:"gladiātor",  kasus:"akk", num:"pl", tmpl:"Spectātōrēs ___ spectant.",        trans:"Die Zuschauer betrachten die Gladiatoren."},
+  {word:"filius",     kasus:"nom", num:"sg", tmpl:"___ patrem amat.",                trans:"Der Sohn liebt den Vater."},
+  {word:"magister",   kasus:"dat", num:"sg", tmpl:"Amīcī ___ dōnum dant.",           trans:"Die Freunde geben dem Lehrer ein Geschenk."},
+  {word:"discipulus", kasus:"nom", num:"pl", tmpl:"___ in scholā sedent.",           trans:"Die Schüler sitzen in der Schule."},
+  {word:"equus",      kasus:"akk", num:"pl", tmpl:"Agitātor ___ incitat.",           trans:"Der Wagenlenker treibt die Pferde an."},
+  {word:"soror",      kasus:"nom", num:"sg", tmpl:"___ frātrem vocat.",              trans:"Die Schwester ruft den Bruder."},
+  {word:"amīcus",     kasus:"abl", num:"sg", tmpl:"Dominus cum ___ sermōnem habet.", trans:"Der Herr führt mit dem Freund ein Gespräch."},
+  {word:"vīlla",      kasus:"abl", num:"sg", tmpl:"Puer ē ___ currit.",              trans:"Der Junge läuft aus dem Landhaus."},
+  {word:"māter",      kasus:"gen", num:"sg", tmpl:"Fīlia vestem ___ videt.",         trans:"Die Tochter sieht das Kleid der Mutter."},
+  {word:"fūr",        kasus:"nom", num:"pl", tmpl:"___ pecūniam cupiunt.",           trans:"Die Diebe wollen Geld."},
+  {word:"amīca",      kasus:"nom", num:"pl", tmpl:"___ in hortō lūdunt.",            trans:"Die Freundinnen spielen im Garten."},
+  {word:"aestās",     kasus:"abl", num:"sg", tmpl:"___ multī in thermīs sunt.",      trans:"Im Sommer sind viele in den Thermen."},
+  {word:"puer",       kasus:"gen", num:"pl", tmpl:"Vōx ___ magna est.",              trans:"Die Stimme der Jungen ist laut."},
+  {word:"amīcus",     kasus:"dat", num:"pl", tmpl:"Dominus ___ dōna dat.",           trans:"Der Herr gibt den Freunden Geschenke."}
+];
+
+function extraInfoHtml(n, kasus, num){
+  const f = paradigm(n);
+  const genSgLine = n.pt
+    ? `<div>Genitiv Singular: <i>kommt bei "${n.l}" nur im Plural vor</i></div>`
+    : `<div>Genitiv Singular: <b>${f.sg_gen}</b> <span style="opacity:.6;">(daran erkennst du oft die Deklination)</span></div>`;
+  return `<div class="trans">
+    <div>Grundform (Nom. Sg.): <b>${n.l}</b> — ${germanForm(n,"nom","sg")}</div>
+    ${genSgLine}
+    <div style="margin-top:6px;">Übersetzung hier (${CASUS_LABEL[kasus]} ${NUM_LABEL[num]}): ${germanForm(n,kasus,num)}</div>
+  </div>`;
+}
+
+/* ---------------- Deutsche Übersetzungsform ---------------- */
+function germanForm(n, kasus, numerus){
+  let word = numerus==="pl" ? n.dp : n.de;
+  let art;
+  if(numerus==="sg"){
+    if(n.dg==="f"){ art = {nom:"die",gen:"der",dat:"der",akk:"die",abl:"der"}; }
+    else if(n.dg==="n"){
+      art = {nom:"das",gen:"des",dat:"dem",akk:"das",abl:"dem"};
+      if(kasus==="gen") word += "s";
+    } else {
+      art = {nom:"der",gen:"des",dat:"dem",akk:"den",abl:"dem"};
+      if(n.w){ if(kasus!=="nom") word += "n"; }
+      else { if(kasus==="gen") word += "s"; }
+    }
+  } else {
+    art = {nom:"die",gen:"der",dat:"den",akk:"die",abl:"den"};
+    if((kasus==="dat"||kasus==="abl") && !word.endsWith("n")) word += "n";
+  }
+  const prefix = kasus==="abl" ? "(von) " : "";
+  return prefix + art[kasus] + " " + word;
+}
+
+/* ---------------- State ---------------- */
+const DEFAULT_SETTINGS = {
+  lekt:[1,2,3,4,5,6,7,8],
+  dekl:["a","o","kons"],
+  cas:["nom","gen","akk","abl"],
+  askDekl:true
+};
+function loadSettings(){
+  try{
+    const raw = JSON.parse(localStorage.getItem("latein_settings"));
+    if(!raw) return {...DEFAULT_SETTINGS};
+    return {
+      lekt: Array.isArray(raw.lekt) && raw.lekt.length ? raw.lekt : DEFAULT_SETTINGS.lekt,
+      dekl: Array.isArray(raw.dekl) && raw.dekl.length ? raw.dekl : DEFAULT_SETTINGS.dekl,
+      cas: Array.isArray(raw.cas) && raw.cas.length ? raw.cas : DEFAULT_SETTINGS.cas,
+      askDekl: typeof raw.askDekl==="boolean" ? raw.askDekl : DEFAULT_SETTINGS.askDekl
+    };
+  }catch(e){ return {...DEFAULT_SETTINGS}; }
+}
+const savedSettings = loadSettings();
+const state = {
+  tab:"bestimmen",
+  lekt: new Set(savedSettings.lekt),
+  dekl: new Set(savedSettings.dekl),
+  cas: new Set(savedSettings.cas),
+  askDekl: savedSettings.askDekl,
+  current: null,
+  answered: false,
+  selKasus:null, selNum:null, selGen:null, selDekl:null
+};
+function saveSettings(){
+  localStorage.setItem("latein_settings", JSON.stringify({
+    lekt:[...state.lekt], dekl:[...state.dekl], cas:[...state.cas], askDekl: state.askDekl
+  }));
+}
+let stats = JSON.parse(localStorage.getItem("latein_stats")||'{"r":0,"f":0}');
+
+function saveStats(){ localStorage.setItem("latein_stats", JSON.stringify(stats)); }
+function resetStats(){ stats={r:0,f:0}; saveStats(); render(); }
+
+function pool(){
+  return VOCAB.filter(n => state.lekt.has(n.k) && state.dekl.has(n.d));
+}
+function activeCasesFor(n){
+  let cs = [...state.cas];
+  if(n.pt) cs = cs; // pluraletantum affects numerus, not casus
+  return cs.length?cs:["nom"];
+}
+function pickNumerus(n){
+  if(n.pt) return "pl";
+  return Math.random()<0.5?"sg":"pl";
+}
+function randPick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+/* ---------------- Drawer ---------------- */
+function openDrawer(){ buildDrawer(); document.getElementById("drawer").classList.add("show"); document.getElementById("overlay").classList.add("show"); }
+function closeDrawer(){ document.getElementById("drawer").classList.remove("show"); document.getElementById("overlay").classList.remove("show"); render(); }
+
+function buildDrawer(){
+  const lektDiv = document.getElementById("lektList"); lektDiv.innerHTML="";
+  for(let i=1;i<=8;i++){
+    const on = state.lekt.has(i);
+    lektDiv.innerHTML += `<div class="rowline">Lektion ${i}<div class="sw ${on?'on':''}" onclick="toggleLekt(${i})"></div></div>`;
+  }
+  const deklDiv = document.getElementById("deklList"); deklDiv.innerHTML="";
+  const deklNames = {a:"a-Deklination", o:"o-Deklination", kons:"konsonantische Deklination"};
+  Object.keys(deklNames).forEach(k=>{
+    const on = state.dekl.has(k);
+    deklDiv.innerHTML += `<div class="rowline">${deklNames[k]}<div class="sw ${on?'on':''}" onclick="toggleDekl('${k}')"></div></div>`;
+  });
+  const casDiv = document.getElementById("casusList"); casDiv.innerHTML="";
+  ["nom","gen","akk","abl","dat"].forEach(c=>{
+    const on = state.cas.has(c);
+    casDiv.innerHTML += `<div class="rowline">${CASUS_LABEL[c]}<div class="sw ${on?'on':''}" onclick="toggleCas('${c}')"></div></div>`;
+  });
+  document.getElementById("statsLine").textContent = stats.r+" / "+stats.f;
+  document.getElementById("swAskDekl").classList.toggle("on", state.askDekl);
+}
+function toggleLekt(i){ state.lekt.has(i)?state.lekt.delete(i):state.lekt.add(i); if(state.lekt.size===0) state.lekt.add(i); saveSettings(); buildDrawer(); }
+function toggleDekl(k){ state.dekl.has(k)?state.dekl.delete(k):state.dekl.add(k); if(state.dekl.size===0) state.dekl.add(k); saveSettings(); buildDrawer(); }
+function toggleCas(c){ state.cas.has(c)?state.cas.delete(c):state.cas.add(c); if(state.cas.size===0) state.cas.add(c); saveSettings(); buildDrawer(); }
+function toggleAskDekl(){ state.askDekl = !state.askDekl; saveSettings(); buildDrawer(); }
+
+/* ---------------- Tabs ---------------- */
+function switchTab(t){
+  state.tab = t;
+  document.querySelectorAll(".tab").forEach(el=>el.classList.toggle("active", el.dataset.tab===t));
+  newQuestion();
+}
+
+/* ---------------- Mode 1: Bestimmen ---------------- */
+function newQuestion_bestimmen(){
+  const p = pool();
+  if(!p.length){ state.current=null; render(); return; }
+  const n = randPick(p);
+  const num = pickNumerus(n);
+  const cs = activeCasesFor(n);
+  const kasus = randPick(cs);
+  const forms = paradigm(n);
+  const form = forms[num+"_"+kasus];
+  // Homograph-Check: alle passenden Kasus/Numerus-Kombis mit identischer Form (nur unter aktiven Filtern)
+  const matches = [];
+  ["sg","pl"].forEach(nu=>{
+    if(n.pt && nu==="sg") return;
+    cs.forEach(ka=>{ if(forms[nu+"_"+ka]===form) matches.push({num:nu,kasus:ka}); });
+  });
+  state.current = {n, num, kasus, form, matches};
+  state.answered = false; state.selKasus=null; state.selNum=null; state.selGen=null; state.selDekl=null; state.selPairs=[];
+  render();
+}
+
+function selectKasus(k){ if(state.answered) return; state.selKasus=k; render(); }
+function selectNum(k){ if(state.answered) return; state.selNum=k; render(); }
+function selectGen(k){ if(state.answered) return; state.selGen=k; render(); }
+function selectDekl(k){ if(state.answered) return; state.selDekl=k; render(); }
+
+function addPair(){
+  if(state.answered || !state.selKasus || !state.selNum) return;
+  const exists = state.selPairs.some(p=>p.kasus===state.selKasus && p.num===state.selNum);
+  if(!exists) state.selPairs.push({kasus:state.selKasus, num:state.selNum});
+  state.selKasus = null; state.selNum = null;
+  render();
+}
+function removePair(idx){ if(state.answered) return; state.selPairs.splice(idx,1); render(); }
+
+function submitBestimmen(){
+  if(state.answered) return;
+  const c = state.current;
+  let pairs = [...state.selPairs];
+  if(state.selKasus && state.selNum && !pairs.some(p=>p.kasus===state.selKasus && p.num===state.selNum)){
+    pairs.push({kasus:state.selKasus, num:state.selNum});
+  }
+  if(!pairs.length || !state.selGen) return;
+  if(state.askDekl && !state.selDekl) return;
+
+  const matchKeys = c.matches.map(m=>m.kasus+"_"+m.num);
+  const givenKeys = pairs.map(p=>p.kasus+"_"+p.num);
+  const missing = c.matches.filter(m=>!givenKeys.includes(m.kasus+"_"+m.num));
+  const extra = pairs.filter(p=>!matchKeys.includes(p.kasus+"_"+p.num));
+  const genOk = state.selGen === c.n.g;
+  const deklOk = state.askDekl ? (state.selDekl === c.n.d) : true;
+  const ok = missing.length===0 && extra.length===0 && genOk && deklOk;
+
+  state.finalPairs = pairs; state.finalMissing = missing; state.finalExtra = extra;
+  state.answered = true;
+  if(ok) stats.r++; else stats.f++;
+  saveStats();
+  render();
+}
+
+/* ---------------- Mode 2: Formen bilden ---------------- */
+function newQuestion_formen(){
+  const p = pool();
+  if(!p.length){ state.current=null; render(); return; }
+  const n = randPick(p);
+  const num = pickNumerus(n);
+  const cs = activeCasesFor(n);
+  const kasus = randPick(cs);
+  const forms = paradigm(n);
+  const correct = forms[num+"_"+kasus];
+
+  // Distraktoren: andere Formen desselben Worts (unter aktiven Filtern), sonst von anderen Wörtern derselben Deklination
+  let candidates = [];
+  ["sg","pl"].forEach(nu=>{
+    if(n.pt && nu==="sg") return;
+    cs.forEach(ka=>{ const f = forms[nu+"_"+ka]; if(f!==correct) candidates.push(f); });
+  });
+  candidates = [...new Set(candidates)];
+  while(candidates.length < 3){
+    const other = randPick(pool().filter(x=>x.d===n.d));
+    if(!other) break;
+    const of = paradigm(other);
+    const rnd = of[randPick(["sg","pl"])+"_"+randPick(["nom","gen","akk","abl"])];
+    if(rnd && rnd!==correct && !candidates.includes(rnd)) candidates.push(rnd);
+  }
+  candidates = candidates.slice(0,3);
+  const options = [...candidates, correct].sort(()=>Math.random()-0.5);
+
+  state.current = {n, num, kasus, correct, options};
+  state.answered = false;
+  render();
+}
+
+function selectOption(idx){
+  if(state.answered) return;
+  const c = state.current;
+  state.selectedIdx = idx;
+  state.answered = true;
+  const ok = c.options[idx] === c.correct;
+  if(ok) stats.r++; else stats.f++;
+  saveStats();
+  render();
+}
+
+/* ---------------- Mode 3: Kasusfragen ---------------- */
+function newQuestion_kasusfragen(){
+  const bank = KASUS_QUESTIONS.filter(q=>state.cas.has(q.kasus));
+  if(!bank.length){ state.current=null; render(); return; }
+  const q = randPick(bank);
+  const correct = CASUS_LABEL[q.kasus];
+  const options = [...state.cas].map(k=>CASUS_LABEL[k]).sort(()=>Math.random()-0.5);
+  state.current = {q, correct, options};
+  state.answered = false;
+  render();
+}
+
+/* ---------------- Mode 4: Genitiv-Sprint ---------------- */
+function newQuestion_genitiv(){
+  const p = pool().filter(n=>!n.pt);
+  if(!p.length){ state.current=null; render(); return; }
+  const n = randPick(p);
+  const forms = paradigm(n);
+  const correct = forms.sg_gen;
+  let candidates = [forms.sg_nom, forms.sg_dat, forms.sg_akk, forms.sg_abl].filter(f=>f!==correct);
+  candidates = [...new Set(candidates)];
+  while(candidates.length < 3){
+    const other = randPick(p.filter(x=>x.d===n.d && x!==n));
+    if(!other) break;
+    const og = paradigm(other).sg_gen;
+    if(og!==correct && !candidates.includes(og)) candidates.push(og);
+  }
+  candidates = candidates.slice(0,3);
+  const options = [...candidates, correct].sort(()=>Math.random()-0.5);
+  state.current = {n, correct, options};
+  state.answered = false;
+  render();
+}
+
+/* ---------------- Mode 5: Vokabeltrainer ---------------- */
+function newQuestion_vokabeln(){
+  const p = VOCAB.filter(n=>state.lekt.has(n.k));
+  if(!p.length){ state.current=null; render(); return; }
+  const n = randPick(p);
+  const direction = Math.random()<0.5 ? "lat2de" : "de2lat";
+  const correct = direction==="lat2de" ? n.de : n.l;
+  const field = direction==="lat2de" ? "de" : "l";
+  let candidates = [...new Set(p.filter(x=>x!==n).map(x=>x[field]))].sort(()=>Math.random()-0.5).slice(0,3);
+  const options = [...candidates, correct].sort(()=>Math.random()-0.5);
+  state.current = {n, direction, correct, options};
+  state.answered = false;
+  render();
+}
+
+/* ---------------- Mode 6: Lückensatz ---------------- */
+function newQuestion_luecken(){
+  const p = LUECKEN.filter(item=>{
+    const n = VOCAB.find(x=>x.l===item.word);
+    return n && state.lekt.has(n.k) && state.dekl.has(n.d) && state.cas.has(item.kasus);
+  });
+  if(!p.length){ state.current=null; render(); return; }
+  const item = randPick(p);
+  const n = VOCAB.find(x=>x.l===item.word);
+  const forms = paradigm(n);
+  const correct = forms[item.num+"_"+item.kasus];
+  let candidates = [];
+  ["sg","pl"].forEach(nu=>{
+    ["nom","gen","dat","akk","abl"].forEach(ka=>{
+      const f = forms[nu+"_"+ka]; if(f!==correct) candidates.push(f);
+    });
+  });
+  candidates = [...new Set(candidates)].sort(()=>Math.random()-0.5).slice(0,3);
+  const options = [...candidates, correct].sort(()=>Math.random()-0.5);
+  state.current = {item, n, correct, options};
+  state.answered = false;
+  render();
+}
+
+function newQuestion(){
+  if(state.tab==="bestimmen") newQuestion_bestimmen();
+  else if(state.tab==="formen") newQuestion_formen();
+  else if(state.tab==="kasusfragen") newQuestion_kasusfragen();
+  else if(state.tab==="genitiv") newQuestion_genitiv();
+  else if(state.tab==="vokabeln") newQuestion_vokabeln();
+  else if(state.tab==="luecken") newQuestion_luecken();
+  else render();
+}
+
+/* ---------------- Layover: vollständige Deklination ---------------- */
+function openParadigm(){
+  if(!state.answered || !state.current) return;
+  const n = state.current.n;
+  const f = paradigm(n);
+  const info = DECL_INFO[declKey(n)];
+  const order = ["nom","gen","dat","akk","abl"];
+  const activeCases = order.filter(c=>state.cas.has(c));
+  const rowLabels = {nom:"Nom.",gen:"Gen.",dat:"Dat.",akk:"Akk.",abl:"Abl."};
+  const rows = activeCases.map(c=>`<tr><td>${rowLabels[c]}</td><td>${f["sg_"+c]}</td><td>${f["pl_"+c]}</td></tr>`).join("");
+  const pt = n.pt ? `<div class="miniNote">Dieses Wort kommt nur im Plural vor – die Singularformen sind grammatisch gebildet, aber im echten Latein ungebräuchlich.</div>` : "";
+  const filterNote = activeCases.length < 5 ? `<div class="miniNote">Zeigt nur die Kasus, die aktuell in ⚙︎ Einstellungen aktiviert sind.</div>` : "";
+  document.getElementById("paraModalCard").innerHTML = `
+    <button class="modalClose" onclick="closeParadigm()">✕</button>
+    <div class="refHead" style="margin-top:0;">${n.l} <span style="color:var(--sub);font-weight:400;">— ${n.de}</span></div>
+    <div class="miniNote" style="margin-bottom:10px;">${info.name}</div>
+    <table class="refTable">
+      <tr><th></th><th>Singular</th><th>Plural</th></tr>
+      ${rows}
+    </table>
+    <div class="miniNote">${info.tip}</div>
+    ${pt}
+    ${filterNote}`;
+  document.getElementById("paraModalWrap").classList.add("show");
+}
+function closeParadigm(){ document.getElementById("paraModalWrap").classList.remove("show"); }
+
+/* ---------------- Render ---------------- */
+function render(){
+  const main = document.getElementById("main");
+  if(state.tab==="tabellen"){ main.innerHTML = renderTabellen(); return; }
+
+  if(!state.current){
+    main.innerHTML = `<div class="card"><div class="empty">Keine Vokabeln für diese Filter ausgewählt.<br>Tippe oben rechts auf ⚙︎, um Lektionen oder Deklinationen zu aktivieren.</div></div>`;
+    return;
+  }
+
+  if(state.tab==="bestimmen") main.innerHTML = renderBestimmen();
+  else if(state.tab==="formen") main.innerHTML = renderFormen();
+  else if(state.tab==="kasusfragen") main.innerHTML = renderKasusfragen();
+  else if(state.tab==="genitiv") main.innerHTML = renderGenitiv();
+  else if(state.tab==="vokabeln") main.innerHTML = renderVokabeln();
+  else if(state.tab==="luecken") main.innerHTML = renderLuecken();
+}
+
+function renderBestimmen(){
+  const c = state.current;
+  const casOpts = [...state.cas].sort((a,b)=>["nom","gen","dat","akk","abl"].indexOf(a)-["nom","gen","dat","akk","abl"].indexOf(b));
+  let kasusBtns = casOpts.map(k=>{
+    let cls="opt"+(state.selKasus===k?" sel":"");
+    return `<div class="${cls}" onclick="selectKasus('${k}')">${CASUS_LABEL[k]}</div>`;
+  }).join("");
+  let numBtns = ["sg","pl"].map(k=>{
+    let cls="opt"+(state.selNum===k?" sel":"");
+    return `<div class="${cls}" onclick="selectNum('${k}')">${NUM_LABEL[k]}</div>`;
+  }).join("");
+  let genBtns = ["m","f","n"].map(k=>{
+    let cls="opt"+(state.selGen===k?" sel":"");
+    if(state.answered){
+      if(state.selGen===k) cls += (k===c.n.g)?" correct":" wrong";
+    }
+    return `<div class="${cls}" onclick="selectGen('${k}')">${GEN_LABEL[k]}</div>`;
+  }).join("");
+  const DEKL_SHORT = {a:"a-Dekl.", o:"o-Dekl.", kons:"kons-Dekl."};
+  let deklBtns = ["a","o","kons"].map(k=>{
+    let cls="opt"+(state.selDekl===k?" sel":"");
+    if(state.answered){
+      if(state.selDekl===k) cls += (k===c.n.d)?" correct":" wrong";
+    }
+    return `<div class="${cls}" onclick="selectDekl('${k}')">${DEKL_SHORT[k]}</div>`;
+  }).join("");
+
+  // Chips: bereits hinzugefügte Kasus/Numerus-Kombinationen
+  const matchKeys = c.matches.map(m=>m.kasus+"_"+m.num);
+  let chips = "";
+  if(!state.answered){
+    chips = state.selPairs.map((p,idx)=>
+      `<span class="chip" style="background:#e5f0fe;color:var(--blue-d);font-weight:600;" onclick="removePair(${idx})">${CASUS_LABEL[p.kasus]} ${NUM_LABEL[p.num]} ✕</span>`
+    ).join(" ");
+  } else {
+    chips = state.finalPairs.map(p=>{
+      const ok = matchKeys.includes(p.kasus+"_"+p.num);
+      return `<span class="chip" style="background:${ok?'var(--green-bg)':'var(--red-bg)'};color:${ok?'var(--green)':'var(--red)'};font-weight:600;">${CASUS_LABEL[p.kasus]} ${NUM_LABEL[p.num]} ${ok?'✓':'✕'}</span>`;
+    }).join(" ");
+  }
+
+  let fb = "";
+  if(state.answered){
+    const genOk = state.selGen === c.n.g;
+    const deklOk = state.askDekl ? (state.selDekl === c.n.d) : true;
+    const ok = state.finalMissing.length===0 && state.finalExtra.length===0 && genOk && deklOk;
+    const info = DECL_INFO[declKey(c.n)];
+    const validList = c.matches.map(m=>`${CASUS_LABEL[m.kasus]} ${NUM_LABEL[m.num]}`).join(" oder ");
+    const missingLine = state.finalMissing.length
+      ? `<div style="margin-top:6px;">Nicht angegeben: ${state.finalMissing.map(m=>`${CASUS_LABEL[m.kasus]} ${NUM_LABEL[m.num]}`).join(", ")}</div>` : "";
+    fb = `<div class="feedback ${ok?'ok':'bad'}">
+      <b>${ok?"✓ Richtig!":"✗ Nicht ganz."}</b>
+      "${c.form}" ist: ${validList}, ${GEN_LABEL[c.n.g]}, ${info.name}.
+      ${missingLine}
+      <div class="why">${info.tip}</div>
+      ${extraInfoHtml(c.n, c.kasus, c.num)}
+    </div>
+    <button class="secondary" onclick="openParadigm()">🔎 Vollständige Deklination ansehen</button>`;
+  }
+
+  const canAdd = !state.answered && state.selKasus && state.selNum && !state.selPairs.some(p=>p.kasus===state.selKasus && p.num===state.selNum);
+  const canSubmit = ((state.selPairs.length>0) || (state.selKasus && state.selNum)) && state.selGen && (!state.askDekl || state.selDekl);
+
+  return `
+  <div class="card">
+    <div class="stats"><span class="chip">L${c.n.k}</span>${state.answered?`<span class="chip">${DECL_INFO[declKey(c.n)].name}</span>`:``}<span style="margin-left:auto;">✓ <b>${stats.r}</b> · ✗ <b>${stats.f}</b></span></div>
+    <div class="prompt-label">Bestimme diese Form</div>
+    <div class="latinWord">${c.form}</div>
+    ${!state.answered?`<div class="miniNote" style="text-align:center;margin-bottom:10px;">Manche Formen sind mehrdeutig – füge bei Bedarf mehrere Kombinationen hinzu.</div>`:``}
+
+    ${!state.answered?`
+    <div class="grp"><div class="grp-label">Kasus</div><div class="btnrow">${kasusBtns}</div></div>
+    <div class="grp"><div class="grp-label">Numerus</div><div class="btnrow">${numBtns}</div></div>
+    <button class="secondary" ${canAdd?"":"disabled"} onclick="addPair()">+ Kombination hinzufügen</button>
+    `:``}
+    ${chips?`<div class="btnrow" style="margin:10px 0;">${chips}</div>`:``}
+
+    <div class="grp" style="margin-top:14px;"><div class="grp-label">Genus</div><div class="btnrow">${genBtns}</div></div>
+    ${state.askDekl?`<div class="grp"><div class="grp-label">Deklination</div><div class="btnrow">${deklBtns}</div></div>`:``}
+
+    ${fb}
+    ${state.answered
+      ? `<button class="primary" onclick="newQuestion()">Nächste Form →</button>`
+      : `<button class="primary" ${canSubmit?"":"disabled"} onclick="submitBestimmen()">Prüfen</button>`}
+  </div>`;
+}
+
+function renderFormen(){
+  const c = state.current;
+  let opts = c.options.map((o,i)=>{
+    let cls="mcOpt";
+    if(state.answered){
+      if(o===c.correct) cls+=" correct";
+      else if(i===state.selectedIdx) cls+=" wrong";
+    }
+    return `<div class="${cls}" onclick="selectOption(${i})">${o}</div>`;
+  }).join("");
+
+  let fb = "";
+  if(state.answered){
+    const ok = c.options[state.selectedIdx]===c.correct;
+    const info = DECL_INFO[declKey(c.n)];
+    fb = `<div class="feedback ${ok?'ok':'bad'}">
+      <b>${ok?"✓ Richtig!":"✗ Nicht ganz."}</b>
+      Die richtige Form ist "${c.correct}".
+      <div class="why">${info.name}: ${info.tip}</div>
+      ${extraInfoHtml(c.n, c.kasus, c.num)}
+    </div>
+    <button class="secondary" onclick="openParadigm()">🔎 Vollständige Deklination ansehen</button>`;
+  }
+
+  return `
+  <div class="card">
+    <div class="stats"><span class="chip">L${c.n.k}</span><span class="chip">${DECL_INFO[declKey(c.n)].name}</span><span style="margin-left:auto;">✓ <b>${stats.r}</b> · ✗ <b>${stats.f}</b></span></div>
+    <div class="prompt-label">Bilde die richtige Form</div>
+    <div class="latinWord" style="font-size:26px;">${c.n.l}</div>
+    <div class="meaning">${c.n.de}</div>
+    <div class="askrow"><span class="askchip">${CASUS_LABEL[c.kasus]}</span><span class="askchip">${NUM_LABEL[c.num]}</span></div>
+
+    ${opts}
+    ${fb}
+    ${state.answered ? `<button class="primary" onclick="newQuestion()">Nächste Form →</button>` : ``}
+  </div>`;
+}
+
+function renderKasusfragen(){
+  const c = state.current;
+  let opts = c.options.map((o,i)=>{
+    let cls="mcOpt";
+    if(state.answered){
+      if(o===c.correct) cls+=" correct";
+      else if(i===state.selectedIdx) cls+=" wrong";
+    }
+    return `<div class="${cls}" onclick="selectOption(${i})">${o}</div>`;
+  }).join("");
+  let fb = "";
+  if(state.answered){
+    const ok = c.options[state.selectedIdx]===c.correct;
+    fb = `<div class="feedback ${ok?'ok':'bad'}">
+      <b>${ok?"✓ Richtig!":"✗ Nicht ganz."}</b>
+      "${c.q.frage}" fragt nach dem <b>${c.correct}</b>.
+    </div>`;
+  }
+  return `
+  <div class="card">
+    <div class="stats"><span class="chip">Kasusfragen</span><span style="margin-left:auto;">✓ <b>${stats.r}</b> · ✗ <b>${stats.f}</b></span></div>
+    <div class="prompt-label">Welcher Kasus wird hier gefragt?</div>
+    <div class="latinWord" style="font-size:24px;">${c.q.frage}</div>
+    ${opts}
+    ${fb}
+    ${state.answered ? `<button class="primary" onclick="newQuestion()">Nächste Frage →</button>` : ``}
+  </div>`;
+}
+
+function renderGenitiv(){
+  const c = state.current;
+  let opts = c.options.map((o,i)=>{
+    let cls="mcOpt";
+    if(state.answered){
+      if(o===c.correct) cls+=" correct";
+      else if(i===state.selectedIdx) cls+=" wrong";
+    }
+    return `<div class="${cls}" onclick="selectOption(${i})">${o}</div>`;
+  }).join("");
+  let fb = "";
+  if(state.answered){
+    const ok = c.options[state.selectedIdx]===c.correct;
+    const info = DECL_INFO[declKey(c.n)];
+    fb = `<div class="feedback ${ok?'ok':'bad'}">
+      <b>${ok?"✓ Richtig!":"✗ Nicht ganz."}</b>
+      Genitiv Singular von "${c.n.l}" ist "${c.correct}".
+      <div class="why">${info.name}: ${info.tip}</div>
+      <div class="trans">${germanForm(c.n,"nom","sg")} (Grundform) — ${germanForm(c.n,"gen","sg")} (Genitiv)</div>
+    </div>
+    <button class="secondary" onclick="openParadigm()">🔎 Vollständige Deklination ansehen</button>`;
+  }
+  return `
+  <div class="card">
+    <div class="stats"><span class="chip">L${c.n.k}</span><span style="margin-left:auto;">✓ <b>${stats.r}</b> · ✗ <b>${stats.f}</b></span></div>
+    <div class="prompt-label">Wie lautet der Genitiv Singular?</div>
+    <div class="latinWord" style="font-size:30px;">${c.n.l}</div>
+    <div class="meaning">${c.n.de}</div>
+    ${opts}
+    ${fb}
+    ${state.answered ? `<button class="primary" onclick="newQuestion()">Nächstes Wort →</button>` : ``}
+  </div>`;
+}
+
+function renderVokabeln(){
+  const c = state.current;
+  const prompt = c.direction==="lat2de" ? c.n.l : germanForm(c.n,"nom","sg");
+  let opts = c.options.map((o,i)=>{
+    let cls="mcOpt";
+    if(state.answered){
+      if(o===c.correct) cls+=" correct";
+      else if(i===state.selectedIdx) cls+=" wrong";
+    }
+    return `<div class="${cls}" onclick="selectOption(${i})">${o}</div>`;
+  }).join("");
+  let fb = "";
+  if(state.answered){
+    const ok = c.options[state.selectedIdx]===c.correct;
+    fb = `<div class="feedback ${ok?'ok':'bad'}">
+      <b>${ok?"✓ Richtig!":"✗ Nicht ganz."}</b>
+      "${c.n.l}" bedeutet "${germanForm(c.n,"nom","sg")}".
+    </div>
+    <button class="secondary" onclick="openParadigm()">🔎 Vollständige Deklination ansehen</button>`;
+  }
+  return `
+  <div class="card">
+    <div class="stats"><span class="chip">L${c.n.k}</span><span class="chip">${c.direction==="lat2de"?"Latein → Deutsch":"Deutsch → Latein"}</span><span style="margin-left:auto;">✓ <b>${stats.r}</b> · ✗ <b>${stats.f}</b></span></div>
+    <div class="prompt-label">Was bedeutet das?</div>
+    <div class="latinWord" style="font-size:${c.direction==='lat2de'?'34px':'24px'};">${prompt}</div>
+    ${opts}
+    ${fb}
+    ${state.answered ? `<button class="primary" onclick="newQuestion()">Nächste Vokabel →</button>` : ``}
+  </div>`;
+}
+
+function renderLuecken(){
+  const c = state.current;
+  const capIfFirst = (s) => c.item.tmpl.startsWith("___") ? (s.charAt(0).toUpperCase()+s.slice(1)) : s;
+  const blankShown = state.answered
+    ? c.item.tmpl.replace("___", `<u>${capIfFirst(c.correct)}</u>`)
+    : c.item.tmpl.replace("___", "▁▁▁▁▁");
+  let opts = c.options.map((o,i)=>{
+    let cls="mcOpt";
+    if(state.answered){
+      if(o===c.correct) cls+=" correct";
+      else if(i===state.selectedIdx) cls+=" wrong";
+    }
+    return `<div class="${cls}" onclick="selectOption(${i})">${o}</div>`;
+  }).join("");
+  let fb = "";
+  if(state.answered){
+    const ok = c.options[state.selectedIdx]===c.correct;
+    const info = DECL_INFO[declKey(c.n)];
+    fb = `<div class="feedback ${ok?'ok':'bad'}">
+      <b>${ok?"✓ Richtig!":"✗ Nicht ganz."}</b>
+      Gesucht war ${CASUS_LABEL[c.item.kasus]} ${NUM_LABEL[c.item.num]} von "${c.n.l}": <b>${c.correct}</b>.
+      <div class="why">${info.name}: ${info.tip}</div>
+    </div>
+    <button class="secondary" onclick="openParadigm()">🔎 Vollständige Deklination ansehen</button>`;
+  }
+  return `
+  <div class="card">
+    <div class="stats"><span class="chip">L${c.n.k}</span><span style="margin-left:auto;">✓ <b>${stats.r}</b> · ✗ <b>${stats.f}</b></span></div>
+    <div class="prompt-label">Setze die richtige Form ein</div>
+    <div class="latinWord" style="font-size:24px; line-height:1.4;">${blankShown}</div>
+    <div class="meaning">${c.item.trans}</div>
+    ${opts}
+    ${fb}
+    ${state.answered ? `<button class="primary" onclick="newQuestion()">Nächster Satz →</button>` : ``}
+  </div>`;
+}
+
+function renderTabellen(){
+  const examples = [
+    {n:{l:"filia",s:"fili",g:"f",d:"a",de:"Tochter"}, key:"a"},
+    {n:{l:"pater",s:"patr",g:"m",d:"kons",de:"Vater"}, key:"kons"},
+    {n:{l:"servus",s:"serv",g:"m",d:"o",de:"Sklave"}, key:"o_m"},
+    {n:{l:"verbum",s:"verb",g:"n",d:"o",de:"Wort"}, key:"o_n"}
+  ];
+  let html = `<div class="card">`;
+  examples.forEach(ex=>{
+    const f = paradigm(ex.n);
+    html += `<div class="refHead">${DECL_INFO[ex.key].name} <span style="color:var(--sub);font-weight:400;">(${ex.n.l} — ${ex.n.de})</span></div>
+    <table class="refTable">
+      <tr><th></th><th>Singular</th><th>Plural</th></tr>
+      <tr><td>Nom.</td><td>${f.sg_nom}</td><td>${f.pl_nom}</td></tr>
+      <tr><td>Gen.</td><td>${f.sg_gen}</td><td>${f.pl_gen}</td></tr>
+      <tr><td>Akk.</td><td>${f.sg_akk}</td><td>${f.pl_akk}</td></tr>
+      <tr><td>Abl.</td><td>${f.sg_abl}</td><td>${f.pl_abl}</td></tr>
+    </table>
+    <div class="miniNote" style="margin-bottom:12px;">${DECL_INFO[ex.key].tip}</div>`;
+  });
+  html += `</div>`;
+  return html;
+}
+
+/* ---------------- Init ---------------- */
+newQuestion();
+</script>
+</body>
+</html>
